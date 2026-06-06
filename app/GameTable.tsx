@@ -21,7 +21,13 @@ import {
   applyRound,
 } from "@/lib/engine";
 import { chooseBotMove, decideBotTrump } from "@/lib/bot";
-import { PlayingCard, CardBack, SUIT_SYMBOL, RANK_LABEL } from "./PlayingCard";
+import {
+  PlayingCard,
+  CardBack,
+  SUIT_SYMBOL,
+  RANK_LABEL,
+  DeckStyle,
+} from "./PlayingCard";
 
 const HUMAN = 0;
 const SEAT_NAMES = ["Du", "Gegner Ost", "Partner", "Gegner West"];
@@ -35,7 +41,7 @@ const SUIT_NAME: Record<string, string> = {
 
 type Phase = "setup" | "trump" | "play" | "roundEnd" | "matchEnd";
 type Freeze = { cards: PlayedCard[]; winner: number };
-type Settings = { target: number; learn: boolean };
+type Settings = { target: number; learn: boolean; deck: DeckStyle };
 
 const partnerOf = (p: number) => (p + 2) % 4;
 
@@ -66,7 +72,11 @@ function explainIllegal(card: Card, trick: PlayedCard[], trump: TrumpMode): stri
 const SETTINGS_KEY = "zwicku.settings";
 
 export default function GameTable() {
-  const [settings, setSettings] = useState<Settings>({ target: 1000, learn: false });
+  const [settings, setSettings] = useState<Settings>({
+    target: 1000,
+    learn: false,
+    deck: "drawn",
+  });
   const [match, setMatch] = useState<MatchState>(() => startMatch({ target: 1000 }));
   const [round, setRound] = useState<GameState | null>(null);
   const [phase, setPhase] = useState<Phase>("setup");
@@ -91,6 +101,7 @@ export default function GameTable() {
         setSettings((s) => ({
           target: typeof saved.target === "number" ? saved.target : s.target,
           learn: typeof saved.learn === "boolean" ? saved.learn : s.learn,
+          deck: saved.deck === "image" || saved.deck === "drawn" ? saved.deck : s.deck,
         }));
       }
     } catch {
@@ -322,6 +333,26 @@ export default function GameTable() {
             Regelverstösse.
           </p>
 
+          <h3>Kartendesign</h3>
+          <div className="segmented">
+            <button
+              className={`seg ${settings.deck === "drawn" ? "on" : ""}`}
+              onClick={() => setSettings((s) => ({ ...s, deck: "drawn" }))}
+            >
+              Gezeichnet
+            </button>
+            <button
+              className={`seg ${settings.deck === "image" ? "on" : ""}`}
+              onClick={() => setSettings((s) => ({ ...s, deck: "image" }))}
+            >
+              Bilder
+            </button>
+          </div>
+          <p className="muted">
+            „Bilder" nutzt das Deck aus <code>public/cards/</code>; fehlt eine
+            Datei, wird automatisch die gezeichnete Karte angezeigt.
+          </p>
+
           <button className="btn big" onClick={startGame}>
             Spiel starten
           </button>
@@ -393,7 +424,7 @@ export default function GameTable() {
             const slot = ["s", "e", "n", "w"][pc.player];
             return (
               <div key={pc.player} className={`slot ${slot}`}>
-                <PlayingCard card={pc.card} width={46} />
+                <PlayingCard card={pc.card} width={46} deck={settings.deck} />
               </div>
             );
           })}
@@ -506,7 +537,12 @@ export default function GameTable() {
               {settings.learn && round && phase === "play" && (
                 <span className="ptbadge">{cardValue(card, round.trump)}</span>
               )}
-              <PlayingCard card={card} width={66} />
+              <PlayingCard
+                card={card}
+                width={66}
+                highlight={interactive && playable}
+                deck={settings.deck}
+              />
             </button>
           );
         })}

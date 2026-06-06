@@ -1,4 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import { Card, Suit, Rank } from "@/lib/engine";
+
+export type DeckStyle = "drawn" | "image";
+
+/** Dateipfad einer Karte im Bild-Deck: /cards/<farbe>-<rang>.gif */
+export function cardImageSrc(card: Card): string {
+  return `/cards/${card.suit}-${card.rank}.gif`;
+}
 
 export const SUIT_SYMBOL: Record<Suit, string> = {
   herz: "♥",
@@ -218,7 +228,55 @@ function isNumber(rank: Rank): boolean {
   return NUMBER_RANKS.includes(rank);
 }
 
+/** Bild-Deck mit automatischem Rückfall auf das gezeichnete Deck. */
+function ImageCard({
+  card,
+  width,
+  highlight,
+}: {
+  card: Card;
+  width: number;
+  highlight: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <DrawnCard card={card} width={width} highlight={highlight} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className="pcard"
+      src={cardImageSrc(card)}
+      alt={`${RANK_LABEL[card.rank]} ${card.suit}`}
+      width={width}
+      height={width * 1.4}
+      style={{
+        boxShadow: highlight
+          ? "0 0 0 2px var(--gold), 0 4px 9px rgba(0,0,0,.45)"
+          : undefined,
+      }}
+      onError={() => setFailed(true)}
+      draggable={false}
+    />
+  );
+}
+
+/** Karte rendern – wahlweise als Bild-Deck oder gezeichnet. */
 export function PlayingCard({
+  card,
+  width = 64,
+  highlight = false,
+  deck = "drawn",
+}: {
+  card: Card;
+  width?: number;
+  highlight?: boolean;
+  deck?: DeckStyle;
+}) {
+  if (deck === "image")
+    return <ImageCard card={card} width={width} highlight={highlight} />;
+  return <DrawnCard card={card} width={width} highlight={highlight} />;
+}
+
+function DrawnCard({
   card,
   width = 64,
   highlight = false,
