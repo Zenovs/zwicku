@@ -75,7 +75,7 @@ export default function GameTable() {
   const [settings, setSettings] = useState<Settings>({
     target: 1000,
     learn: false,
-    deck: "drawn",
+    deck: "image",
   });
   const [match, setMatch] = useState<MatchState>(() => startMatch({ target: 1000 }));
   const [round, setRound] = useState<GameState | null>(null);

@@ -247,7 +247,7 @@ function ImageCard({
       src={cardImageSrc(card)}
       alt={`${RANK_LABEL[card.rank]} ${card.suit}`}
       width={width}
-      height={width * 1.4}
+      height={Math.round((width * 247) / 161)}
       style={{
         boxShadow: highlight
           ? "0 0 0 2px var(--gold), 0 4px 9px rgba(0,0,0,.45)"
