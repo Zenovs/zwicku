@@ -1,0 +1,368 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Card,
+  Suit,
+  Rank,
+  TrumpMode,
+  PlayedCard,
+  GameState,
+  MatchState,
+  RoundResult,
+  createDeck,
+  shuffle,
+  deal,
+  startRound,
+  playCard,
+  scoreRound,
+  legalMoves,
+  startMatch,
+  applyRound,
+} from "@/lib/engine";
+import { chooseBotMove, chooseBotTrump } from "@/lib/bot";
+
+const HUMAN = 0;
+const TARGET = 1000;
+const SEAT_NAMES = ["Du", "Gegner Ost", "Partner", "Gegner West"];
+const SEAT_CLASS = ["south", "east", "north", "west"] as const;
+
+const SUIT_SYMBOL: Record<Suit, string> = {
+  herz: "♥",
+  ecken: "♦",
+  schaufle: "♠",
+  kreuz: "♣",
+};
+const RED_SUITS: Suit[] = ["herz", "ecken"];
+const RANK_LABEL: Record<Rank, string> = {
+  "6": "6",
+  "7": "7",
+  "8": "8",
+  "9": "9",
+  "10": "10",
+  bauer: "B",
+  dame: "D",
+  koenig: "K",
+  ass: "A",
+};
+
+type Phase = "trump" | "play" | "roundEnd" | "matchEnd";
+type Freeze = { cards: PlayedCard[]; winner: number };
+
+function trumpLabel(t: TrumpMode): string {
+  if (t.type === "obenabe") return "Obenabe";
+  if (t.type === "undenufe") return "Undenufe";
+  return `Trumpf ${SUIT_SYMBOL[t.suit]}`;
+}
+
+function sameCard(a: Card, b: Card): boolean {
+  return a.suit === b.suit && a.rank === b.rank;
+}
+
+export default function JassTable() {
+  const [match, setMatch] = useState<MatchState>(() => startMatch({ target: TARGET }));
+  const [round, setRound] = useState<GameState | null>(null);
+  const [phase, setPhase] = useState<Phase>("trump");
+  const [leader, setLeader] = useState(HUMAN);
+  const [pendingHands, setPendingHands] =
+    useState<[Card[], Card[], Card[], Card[]] | null>(null);
+  const [result, setResult] = useState<RoundResult | null>(null);
+  const [freeze, setFreeze] = useState<Freeze | null>(null);
+  const [hint, setHint] = useState("");
+
+  // Verhindert doppelte Auswertung derselben Runde.
+  const finalizedRef = useRef(false);
+
+  const dealNewRound = useCallback((nextLeader: number) => {
+    const hands = deal(shuffle(createDeck()));
+    finalizedRef.current = false;
+    setRound(null);
+    setResult(null);
+    setFreeze(null);
+    setLeader(nextLeader);
+    setPendingHands(hands);
+    setPhase("trump");
+    if (nextLeader === HUMAN) {
+      setHint("Du bist Vorhand – wähle den Trumpf.");
+    } else {
+      setHint(`${SEAT_NAMES[nextLeader]} wählt den Trumpf …`);
+    }
+  }, []);
+
+  // Erste Runde beim Laden.
+  useEffect(() => {
+    dealNewRound(HUMAN);
+  }, [dealNewRound]);
+
+  const beginPlay = useCallback(
+    (hands: [Card[], Card[], Card[], Card[]], trump: TrumpMode, lead: number) => {
+      const gs = startRound(hands, trump, lead);
+      setRound(gs);
+      setPhase("play");
+      setHint(
+        lead === HUMAN ? "Du spielst an." : `${SEAT_NAMES[lead]} spielt an …`,
+      );
+    },
+    [],
+  );
+
+  // Bot wählt Trumpf, sobald er Vorhand ist.
+  useEffect(() => {
+    if (phase !== "trump" || !pendingHands) return;
+    if (leader === HUMAN) return;
+    const id = setTimeout(() => {
+      const trump = chooseBotTrump(pendingHands[leader]);
+      beginPlay(pendingHands, trump, leader);
+    }, 700);
+    return () => clearTimeout(id);
+  }, [phase, pendingHands, leader, beginPlay]);
+
+  const finalizeRound = useCallback(
+    (state: GameState) => {
+      if (finalizedRef.current) return;
+      finalizedRef.current = true;
+      const r = scoreRound(state);
+      const nm = applyRound(match, state.trump, r);
+      setResult(r);
+      setMatch(nm);
+      setPhase(nm.finished ? "matchEnd" : "roundEnd");
+    },
+    [match],
+  );
+
+  const applyMove = useCallback((state: GameState, player: number, card: Card) => {
+    const next = playCard(state, player, card);
+    const trickDone = next.completedTricks.length > state.completedTricks.length;
+    setRound(next);
+    if (trickDone) {
+      const done = next.completedTricks[next.completedTricks.length - 1];
+      setFreeze({ cards: done.cards, winner: done.winner });
+    } else {
+      setFreeze(null);
+    }
+  }, []);
+
+  // Bots ziehen automatisch, einer pro Tick.
+  useEffect(() => {
+    if (phase !== "play" || !round || round.finished) return;
+    if (freeze) return; // während ein abgeschlossener Stich angezeigt wird
+    if (round.toMove === HUMAN) return; // Mensch ist am Zug
+    const p = round.toMove;
+    const id = setTimeout(() => {
+      const card = chooseBotMove(round.hands[p], round.currentTrick, round.trump, p);
+      applyMove(round, p, card);
+    }, 650);
+    return () => clearTimeout(id);
+  }, [phase, round, freeze, applyMove]);
+
+  // Abgeschlossenen Stich kurz zeigen, dann weiter / Runde auswerten.
+  useEffect(() => {
+    if (!freeze || !round) return;
+    const id = setTimeout(() => {
+      setFreeze(null);
+      if (round.finished && phase === "play") {
+        finalizeRound(round);
+      }
+    }, 1100);
+    return () => clearTimeout(id);
+  }, [freeze, round, phase, finalizeRound]);
+
+  const onHumanPlay = (card: Card) => {
+    if (phase !== "play" || !round || freeze) return;
+    if (round.toMove !== HUMAN) return;
+    const legal = legalMoves(round.hands[HUMAN], round.currentTrick, round.trump);
+    if (!legal.some((c) => sameCard(c, card))) {
+      setHint("Diese Karte darfst du gerade nicht spielen (bedienen!).");
+      return;
+    }
+    setHint("");
+    applyMove(round, HUMAN, card);
+  };
+
+  const humanLegal: Card[] =
+    round && phase === "play" && !freeze && round.toMove === HUMAN
+      ? legalMoves(round.hands[HUMAN], round.currentTrick, round.trump)
+      : [];
+  const isLegal = (c: Card) => humanLegal.some((l) => sameCard(l, c));
+
+  const centerCards: PlayedCard[] = freeze
+    ? freeze.cards
+    : round
+      ? round.currentTrick
+      : [];
+
+  const trumpChoices: { label: string; mode: TrumpMode }[] = [
+    { label: `${SUIT_SYMBOL.herz} Herz`, mode: { type: "suit", suit: "herz" } },
+    { label: `${SUIT_SYMBOL.ecken} Ecken`, mode: { type: "suit", suit: "ecken" } },
+    {
+      label: `${SUIT_SYMBOL.schaufle} Schaufle`,
+      mode: { type: "suit", suit: "schaufle" },
+    },
+    { label: `${SUIT_SYMBOL.kreuz} Kreuz`, mode: { type: "suit", suit: "kreuz" } },
+    { label: "Obenabe", mode: { type: "obenabe" } },
+    { label: "Undenufe", mode: { type: "undenufe" } },
+  ];
+
+  const humanHand = round ? round.hands[HUMAN] : pendingHands ? pendingHands[HUMAN] : [];
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <div className="title">Trumpf · Schieber-Jass</div>
+        <div className="scoreboard">
+          <div className="score">
+            Du + Partner <b>{match.scores[0]}</b>
+          </div>
+          <div className="score">
+            Gegner <b>{match.scores[1]}</b>
+          </div>
+        </div>
+        {round && phase === "play" ? (
+          <div className="trumpBadge">{trumpLabel(round.trump)}</div>
+        ) : (
+          <div className="trumpBadge">Ziel {TARGET}</div>
+        )}
+      </div>
+
+      <div className="table">
+        {/* Sitze */}
+        {SEAT_CLASS.map((cls, seat) => {
+          const active =
+            !!round && phase === "play" && !freeze && round.toMove === seat;
+          return (
+            <div key={seat} className={`seat ${cls} ${active ? "active" : ""}`}>
+              <div className="name">{SEAT_NAMES[seat]}</div>
+              {seat !== HUMAN && round && (
+                <div className="backrow">
+                  {round.hands[seat].map((_, i) => (
+                    <div key={i} className="card back" />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Mitte: laufender / gerade abgeschlossener Stich */}
+        <div className="center">
+          {centerCards.map((pc) => {
+            const slot = ["s", "e", "n", "w"][pc.player];
+            return (
+              <div key={pc.player} className={`slot ${slot}`}>
+                <CardView card={pc.card} className="mini" />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Trumpfwahl */}
+        {phase === "trump" && leader === HUMAN && (
+          <div className="overlay">
+            <div className="panel">
+              <h2>Trumpf wählen</h2>
+              <p>Du bist Vorhand. Was wird Trumpf?</p>
+              <div className="trumpGrid">
+                {trumpChoices.map((t) => (
+                  <button
+                    key={t.label}
+                    className="btn"
+                    onClick={() =>
+                      pendingHands && beginPlay(pendingHands, t.mode, leader)
+                    }
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rundenergebnis */}
+        {phase === "roundEnd" && result && (
+          <div className="overlay">
+            <div className="panel">
+              <h2>Runde fertig</h2>
+              <p>
+                Stich-Punkte: <b>Du+Partner {result.pointsByTeam[0]}</b> ·{" "}
+                Gegner {result.pointsByTeam[1]}
+              </p>
+              {result.match !== null && (
+                <p>🎉 Match! +100 für Team {result.match === 0 ? "Du+Partner" : "Gegner"}</p>
+              )}
+              <p>
+                Total: Du+Partner <b>{match.scores[0]}</b> · Gegner{" "}
+                <b>{match.scores[1]}</b> (Ziel {TARGET})
+              </p>
+              <button
+                className="btn"
+                onClick={() => dealNewRound((leader + 1) % 4)}
+              >
+                Nächste Runde
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Matchende */}
+        {phase === "matchEnd" && (
+          <div className="overlay">
+            <div className="panel">
+              <h2>{match.winner === 0 ? "🏆 Ihr habt gewonnen!" : "Gegner gewinnt"}</h2>
+              <p>
+                Endstand: Du+Partner <b>{match.scores[0]}</b> · Gegner{" "}
+                <b>{match.scores[1]}</b>
+              </p>
+              <button
+                className="btn"
+                onClick={() => {
+                  setMatch(startMatch({ target: TARGET }));
+                  dealNewRound(HUMAN);
+                }}
+              >
+                Neues Spiel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Eigene Hand */}
+      <div className="hint">{hint || " "}</div>
+      <div className="hand">
+        {humanHand.map((card) => {
+          const playable = isLegal(card);
+          const interactive = phase === "play" && round?.toMove === HUMAN && !freeze;
+          return (
+            <button
+              key={`${card.suit}-${card.rank}`}
+              className={`card ${RED_SUITS.includes(card.suit) ? "red" : ""} ${
+                interactive ? (playable ? "playable" : "dim") : ""
+              }`}
+              onClick={() => onHumanPlay(card)}
+              disabled={!interactive}
+            >
+              <span className="rank">{RANK_LABEL[card.rank]}</span>
+              <span className="suit">{SUIT_SYMBOL[card.suit]}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="footer">
+        Partner sitzt gegenüber (Norden). Engine:{" "}
+        <a href="https://github.com/Zenovs/trumpf">github.com/Zenovs/trumpf</a>
+      </div>
+    </div>
+  );
+}
+
+function CardView({ card, className = "" }: { card: Card; className?: string }) {
+  const red = RED_SUITS.includes(card.suit);
+  return (
+    <div className={`card ${red ? "red" : ""} ${className}`}>
+      <span className="rank">{RANK_LABEL[card.rank]}</span>
+      <span className="suit">{SUIT_SYMBOL[card.suit]}</span>
+    </div>
+  );
+}

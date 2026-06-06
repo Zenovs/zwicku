@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { trickWinner, PlayedCard, TrumpMode } from "../src";
+import { trickWinner, PlayedCard, TrumpMode } from "../lib/engine";
 
 describe("trickWinner (Trumpf-Farbe)", () => {
   const trump: TrumpMode = { type: "suit", suit: "herz" };

@@ -13,7 +13,7 @@ import {
   TrumpMode,
   ROUND_TOTAL,
   MATCH_BONUS,
-} from "../src";
+} from "../lib/engine";
 
 const trump: TrumpMode = { type: "suit", suit: "herz" };
 

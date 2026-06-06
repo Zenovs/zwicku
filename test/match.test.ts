@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { startMatch, applyRound, RoundResult, TrumpMode } from "../src";
+import { startMatch, applyRound, RoundResult, TrumpMode } from "../lib/engine";
 
 const trump: TrumpMode = { type: "suit", suit: "herz" };
 

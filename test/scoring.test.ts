@@ -6,7 +6,7 @@ import {
   cardValue,
   CARD_POINTS_TOTAL,
   TrumpMode,
-} from "../src";
+} from "../lib/engine";
 
 describe("Deck", () => {
   it("hat genau 36 eindeutige Karten", () => {

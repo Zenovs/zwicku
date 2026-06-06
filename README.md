@@ -1,10 +1,29 @@
 # trumpf
 
-Spiellogik für den **Schieber-Jass** mit französischen Karten (Walliser/Schweizer
-Bezeichnungen). Reine, framework-unabhängige TypeScript-Logik – ohne UI, ohne
-Netzwerk, vollständig deterministisch testbar.
+**Schieber-Jass** mit französischen Karten (Walliser/Schweizer Bezeichnungen):
+eine framework-unabhängige TypeScript-**Engine** plus eine spielbare
+**Next.js-App** gegen einfache Bots.
 
-## Module
+## Projektstruktur
+
+```
+lib/engine/   reine Spiellogik (deterministisch, getestet)
+lib/bot.ts    einfache Bot-Heuristik (Zug- und Trumpfwahl)
+app/          Next.js-App (Spieltisch, deploybar auf Vercel)
+test/         Vitest-Tests der Engine
+```
+
+## App lokal starten
+
+```bash
+npm install
+npm run dev        # http://localhost:3000
+```
+
+Deployment: Die App ist eine Standard-Next.js-App und läuft ohne Anpassung auf
+**Vercel** (Repo verbinden → Framework wird automatisch erkannt).
+
+## Engine-Module (`lib/engine`)
 
 | Modul        | Inhalt                                                                       |
 | ------------ | ---------------------------------------------------------------------------- |

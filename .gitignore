@@ -1,4 +1,11 @@
 node_modules/
 dist/
+.next/
+out/
+next-env.d.ts
 *.log
 .DS_Store
+
+# Vercel
+.vercel
+.env*.local

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { legalMoves, Card, PlayedCard, TrumpMode } from "../src";
+import { legalMoves, Card, PlayedCard, TrumpMode } from "../lib/engine";
 
 const trump: TrumpMode = { type: "suit", suit: "herz" };
 

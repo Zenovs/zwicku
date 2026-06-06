@@ -1,0 +1,280 @@
+:root {
+  --felt: #0f6b3a;
+  --felt-dark: #0a4f2a;
+  --gold: #f2c14e;
+  --card-bg: #fdfdfb;
+  --red: #d23b3b;
+  --black: #1c1c1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: radial-gradient(circle at 50% 35%, var(--felt), var(--felt-dark));
+  color: #fff;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+}
+
+.topbar {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.5px;
+}
+
+.scoreboard {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+}
+.score b {
+  color: var(--gold);
+  font-size: 18px;
+}
+
+.trumpBadge {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+
+.table {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  aspect-ratio: 1 / 1;
+  max-height: 70vh;
+  background: radial-gradient(circle at 50% 50%, #138a4b, #0c5a32);
+  border: 6px solid rgba(0, 0, 0, 0.25);
+  border-radius: 24px;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.35);
+}
+
+.seat {
+  position: absolute;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.seat .name {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.seat.south {
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.seat.north {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.seat.east {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.seat.west {
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.seat.active .name {
+  color: var(--gold);
+}
+.seat.active .name::after {
+  content: " ●";
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  max-width: 480px;
+}
+
+.backrow {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.card {
+  width: 46px;
+  height: 64px;
+  border-radius: 7px;
+  background: var(--card-bg);
+  color: var(--black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 4px;
+  font-weight: 700;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  user-select: none;
+}
+.card.red {
+  color: var(--red);
+}
+.card .rank {
+  align-self: flex-start;
+  font-size: 15px;
+}
+.card .suit {
+  font-size: 22px;
+  line-height: 1;
+}
+.card.back {
+  width: 30px;
+  height: 44px;
+  background: repeating-linear-gradient(45deg, #b5302f, #b5302f 4px, #8e2423 4px, #8e2423 8px);
+  border: 2px solid #fff;
+}
+.card.mini {
+  width: 38px;
+  height: 54px;
+}
+
+button.card {
+  border: none;
+  cursor: default;
+  transition: transform 0.08s ease;
+}
+button.card.playable {
+  cursor: pointer;
+  outline: 2px solid var(--gold);
+}
+button.card.playable:hover {
+  transform: translateY(-8px);
+}
+button.card.dim {
+  opacity: 0.55;
+}
+
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  height: 220px;
+}
+.center .slot {
+  position: absolute;
+}
+.center .slot.s {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.center .slot.n {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.center .slot.e {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.center .slot.w {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 24px;
+  z-index: 5;
+}
+.panel {
+  background: #14322a;
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  padding: 22px 26px;
+  text-align: center;
+  max-width: 420px;
+}
+.panel h2 {
+  margin: 0 0 12px;
+  color: var(--gold);
+}
+.panel p {
+  margin: 6px 0;
+}
+
+.trumpGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.btn {
+  background: var(--gold);
+  color: #1c1c1c;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.btn:hover {
+  filter: brightness(1.06);
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  min-height: 18px;
+  text-align: center;
+}
+.footer {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.footer a {
+  color: var(--gold);
+}
