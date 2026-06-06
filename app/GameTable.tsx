@@ -513,9 +513,9 @@ export default function GameTable() {
         {humanHand.map((card, i) => {
           const n = humanHand.length;
           const mid = (n - 1) / 2;
-          const angle = (i - mid) * 5;
+          const angle = (i - mid) * 4.5;
           const x = (i - mid) * 50;
-          const y = (i - mid) * (i - mid) * 3;
+          const y = (i - mid) * (i - mid) * 1.8;
           const playable = isLegal(card);
           const suggest = suggestion ? sameCard(card, suggestion) : false;
           const style: Record<string, string | number> = {
