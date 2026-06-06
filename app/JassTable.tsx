@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   Card,
   TrumpMode,
@@ -15,19 +16,26 @@ import {
   playCard,
   scoreRound,
   legalMoves,
+  cardValue,
   startMatch,
   applyRound,
 } from "@/lib/engine";
 import { chooseBotMove, decideBotTrump } from "@/lib/bot";
-import { PlayingCard, CardBack, SUIT_SYMBOL } from "./PlayingCard";
+import { PlayingCard, CardBack, SUIT_SYMBOL, RANK_LABEL } from "./PlayingCard";
 
 const HUMAN = 0;
-const TARGET = 1000;
 const SEAT_NAMES = ["Du", "Gegner Ost", "Partner", "Gegner West"];
 const SEAT_CLASS = ["south", "east", "north", "west"] as const;
+const SUIT_NAME: Record<string, string> = {
+  herz: "Herz",
+  ecken: "Ecken",
+  schaufle: "Schaufle",
+  kreuz: "Kreuz",
+};
 
-type Phase = "trump" | "play" | "roundEnd" | "matchEnd";
+type Phase = "setup" | "trump" | "play" | "roundEnd" | "matchEnd";
 type Freeze = { cards: PlayedCard[]; winner: number };
+type Settings = { target: number; learn: boolean };
 
 const partnerOf = (p: number) => (p + 2) % 4;
 
@@ -41,12 +49,25 @@ function sameCard(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank;
 }
 
+function cardName(c: Card): string {
+  return `${RANK_LABEL[c.rank]}${SUIT_SYMBOL[c.suit]}`;
+}
+
+/** Lernmodus: erklärt, warum eine Karte gerade nicht erlaubt ist. */
+function explainIllegal(card: Card, trick: PlayedCard[], trump: TrumpMode): string {
+  if (trick.length === 0) return "";
+  const led = trick[0].card.suit;
+  if (trump.type === "suit" && led === trump.suit) {
+    return "Trumpf wurde angespielt – du musst Trumpf zugeben.";
+  }
+  return `Du musst die angespielte Farbe (${SUIT_NAME[led]}) bedienen.`;
+}
+
 export default function JassTable() {
-  const [match, setMatch] = useState<MatchState>(() =>
-    startMatch({ target: TARGET }),
-  );
+  const [settings, setSettings] = useState<Settings>({ target: 1000, learn: false });
+  const [match, setMatch] = useState<MatchState>(() => startMatch({ target: 1000 }));
   const [round, setRound] = useState<GameState | null>(null);
-  const [phase, setPhase] = useState<Phase>("trump");
+  const [phase, setPhase] = useState<Phase>("setup");
   const [leader, setLeader] = useState(HUMAN);
   const [trumpDecider, setTrumpDecider] = useState(HUMAN);
   const [schoben, setSchoben] = useState(false);
@@ -77,9 +98,10 @@ export default function JassTable() {
     );
   }, []);
 
-  useEffect(() => {
+  const startGame = useCallback(() => {
+    setMatch(startMatch({ target: settings.target }));
     dealNewRound(HUMAN);
-  }, [dealNewRound]);
+  }, [settings.target, dealNewRound]);
 
   const beginPlay = useCallback(
     (hands: [Card[], Card[], Card[], Card[]], trump: TrumpMode, lead: number) => {
@@ -95,7 +117,7 @@ export default function JassTable() {
     [],
   );
 
-  // Bot entscheidet über Trumpf bzw. Schieben.
+  // Bot entscheidet Trumpf / Schieben.
   useEffect(() => {
     if (phase !== "trump" || !pendingHands) return;
     if (trumpDecider === HUMAN) return;
@@ -147,19 +169,14 @@ export default function JassTable() {
     [],
   );
 
-  // Bots ziehen automatisch, einer pro Tick.
+  // Bots ziehen automatisch.
   useEffect(() => {
     if (phase !== "play" || !round || round.finished) return;
     if (freeze) return;
     if (round.toMove === HUMAN) return;
     const p = round.toMove;
     const id = setTimeout(() => {
-      const card = chooseBotMove(
-        round.hands[p],
-        round.currentTrick,
-        round.trump,
-        p,
-      );
+      const card = chooseBotMove(round.hands[p], round.currentTrick, round.trump, p);
       applyMove(round, p, card);
     }, 650);
     return () => clearTimeout(id);
@@ -182,9 +199,8 @@ export default function JassTable() {
 
   const onSchieben = () => {
     if (phase !== "trump" || trumpDecider !== HUMAN || schoben) return;
-    const partner = partnerOf(HUMAN);
     setSchoben(true);
-    setTrumpDecider(partner);
+    setTrumpDecider(partnerOf(HUMAN));
     setHint("Du schiebst – dein Partner sagt an …");
   };
 
@@ -193,32 +209,43 @@ export default function JassTable() {
     if (round.toMove !== HUMAN) return;
     const legal = legalMoves(round.hands[HUMAN], round.currentTrick, round.trump);
     if (!legal.some((c) => sameCard(c, card))) {
-      setHint("Diese Karte darfst du gerade nicht spielen (bedienen!).");
+      setHint(
+        settings.learn
+          ? explainIllegal(card, round.currentTrick, round.trump)
+          : "Diese Karte darfst du gerade nicht spielen (bedienen!).",
+      );
       return;
     }
     setHint("");
     applyMove(round, HUMAN, card);
   };
 
+  // --- abgeleitete Werte ---
+  const interactive = phase === "play" && round?.toMove === HUMAN && !freeze;
   const humanLegal: Card[] =
-    round && phase === "play" && !freeze && round.toMove === HUMAN
+    round && interactive
       ? legalMoves(round.hands[HUMAN], round.currentTrick, round.trump)
       : [];
   const isLegal = (c: Card) => humanLegal.some((l) => sameCard(l, c));
+  const suggestion: Card | null =
+    settings.learn && interactive && round
+      ? chooseBotMove(round.hands[HUMAN], round.currentTrick, round.trump, HUMAN)
+      : null;
 
   const centerCards: PlayedCard[] = freeze
     ? freeze.cards
     : round
       ? round.currentTrick
       : [];
+  const trickPoints =
+    round && settings.learn
+      ? centerCards.reduce((s, pc) => s + cardValue(pc.card, round.trump), 0)
+      : 0;
 
   const trumpChoices: { label: string; mode: TrumpMode }[] = [
     { label: `${SUIT_SYMBOL.herz} Herz`, mode: { type: "suit", suit: "herz" } },
     { label: `${SUIT_SYMBOL.ecken} Ecken`, mode: { type: "suit", suit: "ecken" } },
-    {
-      label: `${SUIT_SYMBOL.schaufle} Schaufle`,
-      mode: { type: "suit", suit: "schaufle" },
-    },
+    { label: `${SUIT_SYMBOL.schaufle} Schaufle`, mode: { type: "suit", suit: "schaufle" } },
     { label: `${SUIT_SYMBOL.kreuz} Kreuz`, mode: { type: "suit", suit: "kreuz" } },
     { label: "Obenabe", mode: { type: "obenabe" } },
     { label: "Undenufe", mode: { type: "undenufe" } },
@@ -229,32 +256,87 @@ export default function JassTable() {
     : pendingHands
       ? pendingHands[HUMAN]
       : [];
-  const interactive =
-    phase === "play" && round?.toMove === HUMAN && !freeze;
 
+  // ----- Setup-Screen -----
+  if (phase === "setup") {
+    const targets = [500, 1000, 1500, 2500];
+    return (
+      <div className="app">
+        <div className="setupCard">
+          <div className="brand">Trumpf</div>
+          <div className="brandSub">Schieber-Jass · französische Karten</div>
+
+          <h3>Punkteziel</h3>
+          <div className="segmented">
+            {targets.map((t) => (
+              <button
+                key={t}
+                className={`seg ${settings.target === t ? "on" : ""}`}
+                onClick={() => setSettings((s) => ({ ...s, target: t }))}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <h3>Lernmodus</h3>
+          <button
+            className={`toggle ${settings.learn ? "on" : ""}`}
+            onClick={() => setSettings((s) => ({ ...s, learn: !s.learn }))}
+            aria-pressed={settings.learn}
+          >
+            <span className="knob" />
+            <span className="toggleLabel">
+              {settings.learn ? "An" : "Aus"}
+            </span>
+          </button>
+          <p className="muted">
+            Zeigt erlaubte Karten, Kartenwerte, einen Spieltipp und erklärt
+            Regelverstösse.
+          </p>
+
+          <button className="btn big" onClick={startGame}>
+            Spiel starten
+          </button>
+        </div>
+        <div className="footer">
+          Engine & Code:{" "}
+          <a href="https://github.com/Zenovs/trumpf">github.com/Zenovs/trumpf</a>
+        </div>
+      </div>
+    );
+  }
+
+  // ----- Spiel -----
   return (
     <div className="app">
       <div className="topbar">
-        <div className="title">Trumpf · Schieber-Jass</div>
+        <button
+          className="gear"
+          title="Neues Spiel / Einstellungen"
+          onClick={() => setPhase("setup")}
+        >
+          ⚙︎
+        </button>
         <div className="scoreboard">
           <div className="score">
             Du + Partner <b>{match.scores[0]}</b>
           </div>
+          <div className="vs">:</div>
           <div className="score">
             Gegner <b>{match.scores[1]}</b>
           </div>
         </div>
-        {round && phase === "play" ? (
-          <div className="trumpBadge">{trumpLabel(round.trump)}</div>
-        ) : (
-          <div className="trumpBadge">Ziel {TARGET}</div>
-        )}
+        <div className="trumpBadge">
+          {round && phase === "play"
+            ? trumpLabel(round.trump)
+            : `Ziel ${settings.target}`}
+        </div>
       </div>
 
       <div className="table">
         {SEAT_CLASS.map((cls, seat) => {
-          const active =
-            !!round && phase === "play" && !freeze && round.toMove === seat;
+          const active = !!round && phase === "play" && !freeze && round.toMove === seat;
           const deciding = phase === "trump" && trumpDecider === seat;
           return (
             <div
@@ -263,12 +345,12 @@ export default function JassTable() {
             >
               <div className="name">
                 {SEAT_NAMES[seat]}
-                {seat === leader && phase !== "matchEnd" ? " (Vorhand)" : ""}
+                {seat === leader && phase !== "matchEnd" ? " · Vorhand" : ""}
               </div>
               {seat !== HUMAN && round && (
                 <div className="backrow">
                   {round.hands[seat].map((_, i) => (
-                    <CardBack key={i} width={26} />
+                    <CardBack key={i} width={24} />
                   ))}
                 </div>
               )}
@@ -277,17 +359,19 @@ export default function JassTable() {
         })}
 
         <div className="center">
+          {settings.learn && centerCards.length > 0 && (
+            <div className="trickPoints">{trickPoints} P</div>
+          )}
           {centerCards.map((pc) => {
             const slot = ["s", "e", "n", "w"][pc.player];
             return (
               <div key={pc.player} className={`slot ${slot}`}>
-                <PlayingCard card={pc.card} width={48} />
+                <PlayingCard card={pc.card} width={46} />
               </div>
             );
           })}
         </div>
 
-        {/* Trumpfwahl / Schieben */}
         {phase === "trump" && trumpDecider === HUMAN && (
           <div className="overlay">
             <div className="panel">
@@ -295,24 +379,17 @@ export default function JassTable() {
               <p>
                 {trumpDecider === leader
                   ? "Du bist Vorhand."
-                  : "Dein Partner hat zu dir geschoben – jetzt sagst du an."}
+                  : "Dein Partner hat zu dir geschoben."}
               </p>
               <div className="trumpGrid">
                 {trumpChoices.map((t) => (
-                  <button
-                    key={t.label}
-                    className="btn"
-                    onClick={() => onChooseTrump(t.mode)}
-                  >
+                  <button key={t.label} className="btn" onClick={() => onChooseTrump(t.mode)}>
                     {t.label}
                   </button>
                 ))}
               </div>
               {trumpDecider === leader && !schoben && (
-                <button
-                  className="btn ghost schiebenBtn"
-                  onClick={onSchieben}
-                >
+                <button className="btn ghost schiebenBtn" onClick={onSchieben}>
                   ⟶ Schieben (Partner sagt an)
                 </button>
               )}
@@ -320,7 +397,6 @@ export default function JassTable() {
           </div>
         )}
 
-        {/* Rundenergebnis */}
         {phase === "roundEnd" && result && (
           <div className="overlay">
             <div className="panel">
@@ -330,76 +406,83 @@ export default function JassTable() {
                 {result.pointsByTeam[1]}
               </p>
               {result.match !== null && (
-                <p>
-                  🎉 Match! +100 für{" "}
-                  {result.match === 0 ? "Du+Partner" : "Gegner"}
-                </p>
+                <p>🎉 Match! +100 für {result.match === 0 ? "euch" : "die Gegner"}</p>
               )}
               <p>
-                Total: Du+Partner <b>{match.scores[0]}</b> · Gegner{" "}
-                <b>{match.scores[1]}</b> (Ziel {TARGET})
+                Total: <b>{match.scores[0]}</b> : <b>{match.scores[1]}</b> (Ziel{" "}
+                {settings.target})
               </p>
-              <button
-                className="btn"
-                onClick={() => dealNewRound((leader + 1) % 4)}
-              >
+              <button className="btn" onClick={() => dealNewRound((leader + 1) % 4)}>
                 Nächste Runde
               </button>
             </div>
           </div>
         )}
 
-        {/* Matchende */}
         {phase === "matchEnd" && (
           <div className="overlay">
             <div className="panel">
-              <h2>
-                {match.winner === 0 ? "🏆 Ihr habt gewonnen!" : "Gegner gewinnt"}
-              </h2>
+              <h2>{match.winner === 0 ? "🏆 Ihr habt gewonnen!" : "Gegner gewinnt"}</h2>
               <p>
-                Endstand: Du+Partner <b>{match.scores[0]}</b> · Gegner{" "}
-                <b>{match.scores[1]}</b>
+                Endstand: <b>{match.scores[0]}</b> : <b>{match.scores[1]}</b>
               </p>
               <button
                 className="btn"
                 onClick={() => {
-                  setMatch(startMatch({ target: TARGET }));
+                  setMatch(startMatch({ target: settings.target }));
                   dealNewRound(HUMAN);
                 }}
               >
-                Neues Spiel
+                Revanche
+              </button>
+              <button className="btn ghost schiebenBtn" onClick={() => setPhase("setup")}>
+                Einstellungen
               </button>
             </div>
           </div>
         )}
       </div>
 
-      <div className="hint">{hint || " "}</div>
-      <div className="hand">
-        {humanHand.map((card) => {
+      <div className="hint">
+        {hint || " "}
+        {suggestion && (
+          <span className="tip"> · 💡 Tipp: {cardName(suggestion)}</span>
+        )}
+      </div>
+
+      {/* Hand – gefächert wie beim Jassen */}
+      <div className="fan">
+        {humanHand.map((card, i) => {
+          const n = humanHand.length;
+          const mid = (n - 1) / 2;
+          const angle = (i - mid) * 5;
+          const x = (i - mid) * 42;
+          const y = (i - mid) * (i - mid) * 2.4;
           const playable = isLegal(card);
+          const suggest = suggestion ? sameCard(card, suggestion) : false;
+          const style: Record<string, string | number> = {
+            "--x": `${x}px`,
+            "--y": `${y}px`,
+            "--a": `${angle}deg`,
+            zIndex: i,
+          };
           return (
             <button
               key={`${card.suit}-${card.rank}`}
-              className={`handcard ${
-                interactive ? (playable ? "playable" : "dim") : ""
+              className={`fancard ${interactive ? (playable ? "playable" : "dim") : ""} ${
+                suggest ? "suggest" : ""
               }`}
+              style={style}
               onClick={() => onHumanPlay(card)}
               disabled={!interactive}
             >
-              <PlayingCard
-                card={card}
-                width={62}
-                highlight={interactive && playable}
-              />
+              {settings.learn && round && phase === "play" && (
+                <span className="ptbadge">{cardValue(card, round.trump)}</span>
+              )}
+              <PlayingCard card={card} width={66} />
             </button>
           );
         })}
-      </div>
-
-      <div className="footer">
-        Partner sitzt gegenüber (Norden). Engine:{" "}
-        <a href="https://github.com/Zenovs/trumpf">github.com/Zenovs/trumpf</a>
       </div>
     </div>
   );
