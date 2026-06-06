@@ -385,7 +385,7 @@ body {
   position: absolute;
   left: 50%;
   bottom: 34px;
-  margin-left: -46px;
+  margin-left: -48px;
   background: none;
   border: none;
   padding: 0;
@@ -462,4 +462,161 @@ body {
   .title {
     display: none;
   }
+}
+
+/* ===== Zwicku: Stammtisch / Holz ===== */
+.app.wood {
+  background:
+    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 64px),
+    linear-gradient(180deg, #6e4c2d 0%, #553a22 100%);
+}
+.wood .table {
+  background:
+    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.035) 0 5px, transparent 5px 26px),
+    radial-gradient(circle at 50% 42%, #7d5733 0%, #5d3f24 72%);
+  border: 8px solid #3c2715;
+  border-radius: 26px;
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.55), 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+
+.topbar .potInfo {
+  font-size: 14px;
+}
+.potInfo b {
+  color: var(--gold);
+  font-size: 17px;
+}
+.dim {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+/* Sitzpositionen */
+.seat.tright {
+  top: 10px;
+  right: 12px;
+}
+.seat.tleft {
+  top: 10px;
+  left: 12px;
+}
+
+.seatRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.seatInfo {
+  text-align: left;
+  line-height: 1.15;
+}
+.seatInfo .bal {
+  font-size: 12px;
+  color: var(--gold);
+  font-weight: 800;
+}
+.seatCoins {
+  position: relative;
+  height: 26px;
+  width: 120px;
+  margin: 1px auto 0;
+}
+.passed {
+  font-size: 12px;
+  color: #e0a0a0;
+  font-style: italic;
+}
+
+/* Münzen */
+.coinpile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.coin {
+  position: absolute;
+}
+.coinSvg {
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+.coinmore {
+  position: absolute;
+  left: 96px;
+  top: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+/* Schnapsglas */
+.glass {
+  display: block;
+  flex: none;
+}
+
+/* Mitte */
+.center {
+  width: 240px;
+  height: 240px;
+}
+.trumpCardSlot {
+  position: absolute;
+  top: -10px;
+  left: -6px;
+  text-align: center;
+}
+.trumpTag {
+  display: block;
+  font-size: 10px;
+  color: var(--gold);
+  margin-top: 1px;
+}
+.potCoins {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 170px;
+  height: 64px;
+}
+.trickRow {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+.trickCard {
+  text-align: center;
+}
+.trickWho {
+  display: block;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 1px;
+}
+
+/* Overlays / Buttons */
+.row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.miniHand {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 12px 0;
+}
+.idleHand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-style: italic;
+  font-size: 14px;
 }

@@ -1,99 +1,64 @@
 import {
   Card,
   PlayedCard,
-  TrumpMode,
   Suit,
+  RANK_ORDER,
   legalMoves,
   trickWinner,
-  cardValue,
-  teamOf,
+  LeadConstraint,
 } from "./engine";
 
-/**
- * Einfache, deterministische Bot-Heuristik (kein Lernverfahren):
- *  - Anspielen: tiefste Karte, um Werte zu schonen.
- *  - Folgen: kann ich den Stich gerade an mich holen, nehme ich ihn mit der
- *    günstigsten gewinnenden Karte. Führt mein Team bereits, werfe ich tief ab.
- *    Sonst werfe ich die punktärmste Karte weg.
- */
-export function chooseBotMove(
-  hand: Card[],
-  trick: PlayedCard[],
-  trump: TrumpMode,
-  player: number,
-): Card {
-  const options = legalMoves(hand, trick, trump);
-  if (options.length === 1) return options[0];
-
-  const cheapest = (cards: Card[]) =>
-    cards.reduce((lo, c) =>
-      cardValue(c, trump) < cardValue(lo, trump) ? c : lo,
-    );
-
-  // Anspielen.
-  if (trick.length === 0) {
-    return cheapest(options);
+/** Grobe Handstärke (0..~) für Mitkommen/Zwack-Entscheidungen. */
+export function handStrength(hand: Card[], trump: Suit): number {
+  let s = 0;
+  for (const c of hand) {
+    if (c.suit === trump) s += 3 + RANK_ORDER[c.rank] * 0.4; // Trümpfe stark
+    else s += RANK_ORDER[c.rank] * 0.25; // hohe Seitenkarten
+    if (c.rank === "ass") s += 1.2;
   }
+  return s;
+}
 
-  const myTeam = teamOf(player);
-  const leadingPlayer = trickWinner(trick, trump);
-  const partnerLeads = teamOf(leadingPlayer) === myTeam;
+/** Bot: mitkommen oder passen? */
+export function botComesAlong(hand: Card[], trump: Suit): boolean {
+  return handStrength(hand, trump) >= 7;
+}
 
-  // Welche Optionen holen den Stich (Stand jetzt) an mich?
-  const winning = options.filter(
-    (c) => trickWinner([...trick, { player, card: c }], trump) === player,
-  );
-
-  if (partnerLeads) {
-    // Partner führt: nicht überstechen, billig abwerfen.
-    return cheapest(options);
-  }
-
-  if (winning.length > 0) {
-    // Stich an mich holen, möglichst günstig.
-    return cheapest(winning);
-  }
-
-  // Kann nicht gewinnen: punktärmste Karte abwerfen.
-  return cheapest(options);
+/** Bot (als Austeiler): vor dem Aufdecken "zwack" sagen? Blind, nur Hand bekannt. */
+export function botSaysZwack(hand: Card[]): boolean {
+  // Zwack ist riskant (doppelt bei null Stichen): nur mit zwei Assen/sehr hoch.
+  const aces = hand.filter((c) => c.rank === "ass").length;
+  const highs = hand.filter((c) => RANK_ORDER[c.rank] >= 7).length;
+  return aces >= 1 && highs >= 2;
 }
 
 /**
- * Trumpf-Entscheidung eines Bots inkl. Schieben.
- * Liefert eine Trumpf-Ansage oder "schieben" (nur wenn `canSchieben`).
- *
- * Heuristik: stärkste Farbe zählen, Buur/Nell extra gewichten. Ist die Hand
- * für eine Ansage zu schwach und Schieben noch möglich, wird geschoben.
+ * Bot-Kartenwahl: gewinnt er den Stich gerade günstig, nimmt er ihn; sonst
+ * wirft er möglichst tief ab. Beim Anspielen führt er seine stärkste Karte.
  */
-export function decideBotTrump(
+export function chooseBotCard(
   hand: Card[],
-  canSchieben: boolean,
-): TrumpMode | "schieben" {
-  const counts: Record<Suit, number> = {
-    herz: 0,
-    ecken: 0,
-    schaufle: 0,
-    kreuz: 0,
-  };
-  for (const c of hand) counts[c.suit] += 1;
+  trick: PlayedCard[],
+  trump: Suit,
+  player: number,
+  lead: LeadConstraint = {},
+): Card {
+  const options = legalMoves(hand, trick, trump, lead);
+  if (options.length === 1) return options[0];
 
-  let bestSuit: Suit = "herz";
-  let bestCount = -1;
-  (Object.keys(counts) as Suit[]).forEach((s) => {
-    if (counts[s] > bestCount) {
-      bestCount = counts[s];
-      bestSuit = s;
-    }
-  });
+  const strength = (c: Card) => (c.suit === trump ? 100 : 0) + RANK_ORDER[c.rank];
+  const lowest = (cs: Card[]) =>
+    cs.reduce((lo, c) => (strength(c) < strength(lo) ? c : lo));
+  const highest = (cs: Card[]) =>
+    cs.reduce((hi, c) => (strength(c) > strength(hi) ? c : hi));
 
-  const hasBuur = hand.some((c) => c.suit === bestSuit && c.rank === "bauer");
-  const hasNell = hand.some((c) => c.suit === bestSuit && c.rank === "9");
-  const trumpStrength = bestCount + (hasBuur ? 2 : 0) + (hasNell ? 1 : 0);
-
-  // Zu schwach für eine eigene Ansage -> schieben, falls erlaubt.
-  if (canSchieben && trumpStrength < 4) {
-    return "schieben";
+  if (trick.length === 0) {
+    return highest(options); // anspielen: stark führen
   }
-  if (bestCount >= 3) return { type: "suit", suit: bestSuit };
-  return { type: "obenabe" };
+
+  const winning = options.filter(
+    (c) => trickWinner([...trick, { player, card: c }], trump) === player,
+  );
+  if (winning.length > 0) return lowest(winning); // günstig stechen
+  return lowest(options); // sonst tief abwerfen
 }

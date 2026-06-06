@@ -1,4 +1,4 @@
-import { Card, RANKS, SUITS } from "./types";
+import { Card, CARDS_PER_PLAYER, RANKS, SUITS } from "./types";
 
 /** Erzeugt ein vollständiges, geordnetes 36-Karten-Deck. */
 export function createDeck(): Card[] {
@@ -24,17 +24,34 @@ export function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
   return result;
 }
 
+export interface Deal {
+  /** Hände in Spielerreihenfolge, je drei Karten. */
+  hands: Card[][];
+  /** Aufgedeckte oberste Karte = Trumpf. */
+  trumpCard: Card;
+  /** Restlicher Stapel (für späteres Opinier-Nachziehen). */
+  stock: Card[];
+}
+
 /**
- * Teilt ein 36-Karten-Deck auf vier Spieler auf (je 9 Karten).
- * Gibt vier Hände in Spielerreihenfolge zurück.
+ * Teilt für Zwicku aus: jeder Spieler drei Karten, danach wird die nächste
+ * Karte als Trumpf aufgedeckt. Der Rest bleibt als Stapel liegen.
  */
-export function deal(deck: Card[]): [Card[], Card[], Card[], Card[]] {
-  if (deck.length !== 36) {
-    throw new Error(`Deck muss 36 Karten haben, hat aber ${deck.length}.`);
+export function dealZwicku(deck: Card[], players: number): Deal {
+  const need = players * CARDS_PER_PLAYER + 1;
+  if (deck.length < need) {
+    throw new Error(
+      `Deck zu klein: braucht ${need} Karten für ${players} Spieler, hat ${deck.length}.`,
+    );
   }
-  const hands: Card[][] = [[], [], [], []];
-  deck.forEach((card, index) => {
-    hands[index % 4].push(card);
-  });
-  return hands as [Card[], Card[], Card[], Card[]];
+  const hands: Card[][] = Array.from({ length: players }, () => []);
+  let i = 0;
+  for (let c = 0; c < CARDS_PER_PLAYER; c++) {
+    for (let p = 0; p < players; p++) {
+      hands[p].push(deck[i++]);
+    }
+  }
+  const trumpCard = deck[i++];
+  const stock = deck.slice(i);
+  return { hands, trumpCard, stock };
 }
