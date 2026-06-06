@@ -371,15 +371,15 @@ body {
 .fan {
   position: relative;
   width: 100%;
-  max-width: 560px;
-  height: 150px;
+  max-width: 680px;
+  height: 200px;
   margin-top: 6px;
 }
 .fancard {
   position: absolute;
   left: 50%;
   bottom: 0;
-  margin-left: -33px;
+  margin-left: -46px;
   background: none;
   border: none;
   padding: 0;
@@ -396,7 +396,7 @@ body {
   cursor: pointer;
 }
 .fancard.playable:hover {
-  transform: translateX(var(--x)) translateY(calc(var(--y) - 28px)) rotate(var(--a));
+  transform: translateX(var(--x)) translateY(calc(var(--y) - 36px)) rotate(var(--a));
   z-index: 100 !important;
 }
 .fancard.dim {

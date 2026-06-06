@@ -514,8 +514,8 @@ export default function GameTable() {
           const n = humanHand.length;
           const mid = (n - 1) / 2;
           const angle = (i - mid) * 5;
-          const x = (i - mid) * 42;
-          const y = (i - mid) * (i - mid) * 2.4;
+          const x = (i - mid) * 50;
+          const y = (i - mid) * (i - mid) * 3;
           const playable = isLegal(card);
           const suggest = suggestion ? sameCard(card, suggestion) : false;
           const style: Record<string, string | number> = {
@@ -539,7 +539,7 @@ export default function GameTable() {
               )}
               <PlayingCard
                 card={card}
-                width={66}
+                width={92}
                 highlight={interactive && playable}
                 deck={settings.deck}
               />
