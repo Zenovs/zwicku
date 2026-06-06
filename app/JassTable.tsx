@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
-  Suit,
-  Rank,
   TrumpMode,
   PlayedCard,
   GameState,
@@ -20,34 +18,18 @@ import {
   startMatch,
   applyRound,
 } from "@/lib/engine";
-import { chooseBotMove, chooseBotTrump } from "@/lib/bot";
+import { chooseBotMove, decideBotTrump } from "@/lib/bot";
+import { PlayingCard, CardBack, SUIT_SYMBOL } from "./PlayingCard";
 
 const HUMAN = 0;
 const TARGET = 1000;
 const SEAT_NAMES = ["Du", "Gegner Ost", "Partner", "Gegner West"];
 const SEAT_CLASS = ["south", "east", "north", "west"] as const;
 
-const SUIT_SYMBOL: Record<Suit, string> = {
-  herz: "♥",
-  ecken: "♦",
-  schaufle: "♠",
-  kreuz: "♣",
-};
-const RED_SUITS: Suit[] = ["herz", "ecken"];
-const RANK_LABEL: Record<Rank, string> = {
-  "6": "6",
-  "7": "7",
-  "8": "8",
-  "9": "9",
-  "10": "10",
-  bauer: "B",
-  dame: "D",
-  koenig: "K",
-  ass: "A",
-};
-
 type Phase = "trump" | "play" | "roundEnd" | "matchEnd";
 type Freeze = { cards: PlayedCard[]; winner: number };
+
+const partnerOf = (p: number) => (p + 2) % 4;
 
 function trumpLabel(t: TrumpMode): string {
   if (t.type === "obenabe") return "Obenabe";
@@ -60,17 +42,21 @@ function sameCard(a: Card, b: Card): boolean {
 }
 
 export default function JassTable() {
-  const [match, setMatch] = useState<MatchState>(() => startMatch({ target: TARGET }));
+  const [match, setMatch] = useState<MatchState>(() =>
+    startMatch({ target: TARGET }),
+  );
   const [round, setRound] = useState<GameState | null>(null);
   const [phase, setPhase] = useState<Phase>("trump");
   const [leader, setLeader] = useState(HUMAN);
-  const [pendingHands, setPendingHands] =
-    useState<[Card[], Card[], Card[], Card[]] | null>(null);
+  const [trumpDecider, setTrumpDecider] = useState(HUMAN);
+  const [schoben, setSchoben] = useState(false);
+  const [pendingHands, setPendingHands] = useState<
+    [Card[], Card[], Card[], Card[]] | null
+  >(null);
   const [result, setResult] = useState<RoundResult | null>(null);
   const [freeze, setFreeze] = useState<Freeze | null>(null);
   const [hint, setHint] = useState("");
 
-  // Verhindert doppelte Auswertung derselben Runde.
   const finalizedRef = useRef(false);
 
   const dealNewRound = useCallback((nextLeader: number) => {
@@ -80,16 +66,17 @@ export default function JassTable() {
     setResult(null);
     setFreeze(null);
     setLeader(nextLeader);
+    setTrumpDecider(nextLeader);
+    setSchoben(false);
     setPendingHands(hands);
     setPhase("trump");
-    if (nextLeader === HUMAN) {
-      setHint("Du bist Vorhand – wähle den Trumpf.");
-    } else {
-      setHint(`${SEAT_NAMES[nextLeader]} wählt den Trumpf …`);
-    }
+    setHint(
+      nextLeader === HUMAN
+        ? "Du bist Vorhand – Trumpf wählen oder schieben."
+        : `${SEAT_NAMES[nextLeader]} ist Vorhand …`,
+    );
   }, []);
 
-  // Erste Runde beim Laden.
   useEffect(() => {
     dealNewRound(HUMAN);
   }, [dealNewRound]);
@@ -100,22 +87,36 @@ export default function JassTable() {
       setRound(gs);
       setPhase("play");
       setHint(
-        lead === HUMAN ? "Du spielst an." : `${SEAT_NAMES[lead]} spielt an …`,
+        lead === HUMAN
+          ? `${trumpLabel(trump)} – du spielst an.`
+          : `${trumpLabel(trump)} – ${SEAT_NAMES[lead]} spielt an …`,
       );
     },
     [],
   );
 
-  // Bot wählt Trumpf, sobald er Vorhand ist.
+  // Bot entscheidet über Trumpf bzw. Schieben.
   useEffect(() => {
     if (phase !== "trump" || !pendingHands) return;
-    if (leader === HUMAN) return;
+    if (trumpDecider === HUMAN) return;
     const id = setTimeout(() => {
-      const trump = chooseBotTrump(pendingHands[leader]);
-      beginPlay(pendingHands, trump, leader);
-    }, 700);
+      const canSchieben = !schoben && trumpDecider === leader;
+      const decision = decideBotTrump(pendingHands[trumpDecider], canSchieben);
+      if (decision === "schieben") {
+        const partner = partnerOf(trumpDecider);
+        setSchoben(true);
+        setTrumpDecider(partner);
+        setHint(
+          partner === HUMAN
+            ? `${SEAT_NAMES[trumpDecider]} schiebt zu dir – du musst ansagen.`
+            : `${SEAT_NAMES[trumpDecider]} schiebt zum Partner …`,
+        );
+      } else {
+        beginPlay(pendingHands, decision, leader);
+      }
+    }, 800);
     return () => clearTimeout(id);
-  }, [phase, pendingHands, leader, beginPlay]);
+  }, [phase, pendingHands, trumpDecider, schoben, leader, beginPlay]);
 
   const finalizeRound = useCallback(
     (state: GameState) => {
@@ -130,42 +131,62 @@ export default function JassTable() {
     [match],
   );
 
-  const applyMove = useCallback((state: GameState, player: number, card: Card) => {
-    const next = playCard(state, player, card);
-    const trickDone = next.completedTricks.length > state.completedTricks.length;
-    setRound(next);
-    if (trickDone) {
-      const done = next.completedTricks[next.completedTricks.length - 1];
-      setFreeze({ cards: done.cards, winner: done.winner });
-    } else {
-      setFreeze(null);
-    }
-  }, []);
+  const applyMove = useCallback(
+    (state: GameState, player: number, card: Card) => {
+      const next = playCard(state, player, card);
+      const trickDone =
+        next.completedTricks.length > state.completedTricks.length;
+      setRound(next);
+      if (trickDone) {
+        const done = next.completedTricks[next.completedTricks.length - 1];
+        setFreeze({ cards: done.cards, winner: done.winner });
+      } else {
+        setFreeze(null);
+      }
+    },
+    [],
+  );
 
   // Bots ziehen automatisch, einer pro Tick.
   useEffect(() => {
     if (phase !== "play" || !round || round.finished) return;
-    if (freeze) return; // während ein abgeschlossener Stich angezeigt wird
-    if (round.toMove === HUMAN) return; // Mensch ist am Zug
+    if (freeze) return;
+    if (round.toMove === HUMAN) return;
     const p = round.toMove;
     const id = setTimeout(() => {
-      const card = chooseBotMove(round.hands[p], round.currentTrick, round.trump, p);
+      const card = chooseBotMove(
+        round.hands[p],
+        round.currentTrick,
+        round.trump,
+        p,
+      );
       applyMove(round, p, card);
     }, 650);
     return () => clearTimeout(id);
   }, [phase, round, freeze, applyMove]);
 
-  // Abgeschlossenen Stich kurz zeigen, dann weiter / Runde auswerten.
+  // Abgeschlossenen Stich kurz zeigen, dann weiter / auswerten.
   useEffect(() => {
     if (!freeze || !round) return;
     const id = setTimeout(() => {
       setFreeze(null);
-      if (round.finished && phase === "play") {
-        finalizeRound(round);
-      }
+      if (round.finished && phase === "play") finalizeRound(round);
     }, 1100);
     return () => clearTimeout(id);
   }, [freeze, round, phase, finalizeRound]);
+
+  const onChooseTrump = (mode: TrumpMode) => {
+    if (phase !== "trump" || !pendingHands || trumpDecider !== HUMAN) return;
+    beginPlay(pendingHands, mode, leader);
+  };
+
+  const onSchieben = () => {
+    if (phase !== "trump" || trumpDecider !== HUMAN || schoben) return;
+    const partner = partnerOf(HUMAN);
+    setSchoben(true);
+    setTrumpDecider(partner);
+    setHint("Du schiebst – dein Partner sagt an …");
+  };
 
   const onHumanPlay = (card: Card) => {
     if (phase !== "play" || !round || freeze) return;
@@ -203,7 +224,13 @@ export default function JassTable() {
     { label: "Undenufe", mode: { type: "undenufe" } },
   ];
 
-  const humanHand = round ? round.hands[HUMAN] : pendingHands ? pendingHands[HUMAN] : [];
+  const humanHand = round
+    ? round.hands[HUMAN]
+    : pendingHands
+      ? pendingHands[HUMAN]
+      : [];
+  const interactive =
+    phase === "play" && round?.toMove === HUMAN && !freeze;
 
   return (
     <div className="app">
@@ -225,17 +252,23 @@ export default function JassTable() {
       </div>
 
       <div className="table">
-        {/* Sitze */}
         {SEAT_CLASS.map((cls, seat) => {
           const active =
             !!round && phase === "play" && !freeze && round.toMove === seat;
+          const deciding = phase === "trump" && trumpDecider === seat;
           return (
-            <div key={seat} className={`seat ${cls} ${active ? "active" : ""}`}>
-              <div className="name">{SEAT_NAMES[seat]}</div>
+            <div
+              key={seat}
+              className={`seat ${cls} ${active || deciding ? "active" : ""}`}
+            >
+              <div className="name">
+                {SEAT_NAMES[seat]}
+                {seat === leader && phase !== "matchEnd" ? " (Vorhand)" : ""}
+              </div>
               {seat !== HUMAN && round && (
                 <div className="backrow">
                   {round.hands[seat].map((_, i) => (
-                    <div key={i} className="card back" />
+                    <CardBack key={i} width={26} />
                   ))}
                 </div>
               )}
@@ -243,37 +276,46 @@ export default function JassTable() {
           );
         })}
 
-        {/* Mitte: laufender / gerade abgeschlossener Stich */}
         <div className="center">
           {centerCards.map((pc) => {
             const slot = ["s", "e", "n", "w"][pc.player];
             return (
               <div key={pc.player} className={`slot ${slot}`}>
-                <CardView card={pc.card} className="mini" />
+                <PlayingCard card={pc.card} width={48} />
               </div>
             );
           })}
         </div>
 
-        {/* Trumpfwahl */}
-        {phase === "trump" && leader === HUMAN && (
+        {/* Trumpfwahl / Schieben */}
+        {phase === "trump" && trumpDecider === HUMAN && (
           <div className="overlay">
             <div className="panel">
-              <h2>Trumpf wählen</h2>
-              <p>Du bist Vorhand. Was wird Trumpf?</p>
+              <h2>Trumpf ansagen{schoben ? " (geschoben)" : ""}</h2>
+              <p>
+                {trumpDecider === leader
+                  ? "Du bist Vorhand."
+                  : "Dein Partner hat zu dir geschoben – jetzt sagst du an."}
+              </p>
               <div className="trumpGrid">
                 {trumpChoices.map((t) => (
                   <button
                     key={t.label}
                     className="btn"
-                    onClick={() =>
-                      pendingHands && beginPlay(pendingHands, t.mode, leader)
-                    }
+                    onClick={() => onChooseTrump(t.mode)}
                   >
                     {t.label}
                   </button>
                 ))}
               </div>
+              {trumpDecider === leader && !schoben && (
+                <button
+                  className="btn ghost schiebenBtn"
+                  onClick={onSchieben}
+                >
+                  ⟶ Schieben (Partner sagt an)
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -284,11 +326,14 @@ export default function JassTable() {
             <div className="panel">
               <h2>Runde fertig</h2>
               <p>
-                Stich-Punkte: <b>Du+Partner {result.pointsByTeam[0]}</b> ·{" "}
-                Gegner {result.pointsByTeam[1]}
+                Stich-Punkte: <b>Du+Partner {result.pointsByTeam[0]}</b> · Gegner{" "}
+                {result.pointsByTeam[1]}
               </p>
               {result.match !== null && (
-                <p>🎉 Match! +100 für Team {result.match === 0 ? "Du+Partner" : "Gegner"}</p>
+                <p>
+                  🎉 Match! +100 für{" "}
+                  {result.match === 0 ? "Du+Partner" : "Gegner"}
+                </p>
               )}
               <p>
                 Total: Du+Partner <b>{match.scores[0]}</b> · Gegner{" "}
@@ -308,7 +353,9 @@ export default function JassTable() {
         {phase === "matchEnd" && (
           <div className="overlay">
             <div className="panel">
-              <h2>{match.winner === 0 ? "🏆 Ihr habt gewonnen!" : "Gegner gewinnt"}</h2>
+              <h2>
+                {match.winner === 0 ? "🏆 Ihr habt gewonnen!" : "Gegner gewinnt"}
+              </h2>
               <p>
                 Endstand: Du+Partner <b>{match.scores[0]}</b> · Gegner{" "}
                 <b>{match.scores[1]}</b>
@@ -327,23 +374,24 @@ export default function JassTable() {
         )}
       </div>
 
-      {/* Eigene Hand */}
-      <div className="hint">{hint || " "}</div>
+      <div className="hint">{hint || " "}</div>
       <div className="hand">
         {humanHand.map((card) => {
           const playable = isLegal(card);
-          const interactive = phase === "play" && round?.toMove === HUMAN && !freeze;
           return (
             <button
               key={`${card.suit}-${card.rank}`}
-              className={`card ${RED_SUITS.includes(card.suit) ? "red" : ""} ${
+              className={`handcard ${
                 interactive ? (playable ? "playable" : "dim") : ""
               }`}
               onClick={() => onHumanPlay(card)}
               disabled={!interactive}
             >
-              <span className="rank">{RANK_LABEL[card.rank]}</span>
-              <span className="suit">{SUIT_SYMBOL[card.suit]}</span>
+              <PlayingCard
+                card={card}
+                width={62}
+                highlight={interactive && playable}
+              />
             </button>
           );
         })}
@@ -353,16 +401,6 @@ export default function JassTable() {
         Partner sitzt gegenüber (Norden). Engine:{" "}
         <a href="https://github.com/Zenovs/trumpf">github.com/Zenovs/trumpf</a>
       </div>
-    </div>
-  );
-}
-
-function CardView({ card, className = "" }: { card: Card; className?: string }) {
-  const red = RED_SUITS.includes(card.suit);
-  return (
-    <div className={`card ${red ? "red" : ""} ${className}`}>
-      <span className="rank">{RANK_LABEL[card.rank]}</span>
-      <span className="suit">{SUIT_SYMBOL[card.suit]}</span>
     </div>
   );
 }

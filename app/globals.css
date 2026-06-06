@@ -127,57 +127,37 @@ body {
   justify-content: center;
 }
 
-.card {
-  width: 46px;
-  height: 64px;
-  border-radius: 7px;
-  background: var(--card-bg);
-  color: var(--black);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 4px;
-  font-weight: 700;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+.pcard {
+  display: block;
+  border-radius: 9px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   user-select: none;
 }
-.card.red {
-  color: var(--red);
+
+.backrow .pcard {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
-.card .rank {
-  align-self: flex-start;
-  font-size: 15px;
-}
-.card .suit {
-  font-size: 22px;
-  line-height: 1;
-}
-.card.back {
-  width: 30px;
-  height: 44px;
-  background: repeating-linear-gradient(45deg, #b5302f, #b5302f 4px, #8e2423 4px, #8e2423 8px);
-  border: 2px solid #fff;
-}
-.card.mini {
-  width: 38px;
-  height: 54px;
+.backrow .pcard:not(:first-child) {
+  margin-left: -16px;
 }
 
-button.card {
+.handcard {
+  background: none;
   border: none;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
   cursor: default;
-  transition: transform 0.08s ease;
+  transition: transform 0.1s ease;
 }
-button.card.playable {
+.handcard.playable {
   cursor: pointer;
-  outline: 2px solid var(--gold);
 }
-button.card.playable:hover {
-  transform: translateY(-8px);
+.handcard.playable:hover {
+  transform: translateY(-12px);
 }
-button.card.dim {
-  opacity: 0.55;
+.handcard.dim {
+  opacity: 0.5;
 }
 
 .center {
@@ -261,6 +241,10 @@ button.card.dim {
   background: transparent;
   color: var(--gold);
   border: 1px solid var(--gold);
+}
+.schiebenBtn {
+  margin-top: 12px;
+  width: 100%;
 }
 
 .hint {

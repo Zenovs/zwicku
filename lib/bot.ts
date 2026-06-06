@@ -58,8 +58,17 @@ export function chooseBotMove(
   return cheapest(options);
 }
 
-/** Trumpfwahl eines Bots: Farbe mit den meisten Karten, sonst Obenabe. */
-export function chooseBotTrump(hand: Card[]): TrumpMode {
+/**
+ * Trumpf-Entscheidung eines Bots inkl. Schieben.
+ * Liefert eine Trumpf-Ansage oder "schieben" (nur wenn `canSchieben`).
+ *
+ * Heuristik: stärkste Farbe zählen, Buur/Nell extra gewichten. Ist die Hand
+ * für eine Ansage zu schwach und Schieben noch möglich, wird geschoben.
+ */
+export function decideBotTrump(
+  hand: Card[],
+  canSchieben: boolean,
+): TrumpMode | "schieben" {
   const counts: Record<Suit, number> = {
     herz: 0,
     ecken: 0,
@@ -77,7 +86,14 @@ export function chooseBotTrump(hand: Card[]): TrumpMode {
     }
   });
 
-  // Schwache Farbverteilung -> lieber Obenabe.
-  if (bestCount <= 2) return { type: "obenabe" };
-  return { type: "suit", suit: bestSuit };
+  const hasBuur = hand.some((c) => c.suit === bestSuit && c.rank === "bauer");
+  const hasNell = hand.some((c) => c.suit === bestSuit && c.rank === "9");
+  const trumpStrength = bestCount + (hasBuur ? 2 : 0) + (hasNell ? 1 : 0);
+
+  // Zu schwach für eine eigene Ansage -> schieben, falls erlaubt.
+  if (canSchieben && trumpStrength < 4) {
+    return "schieben";
+  }
+  if (bestCount >= 3) return { type: "suit", suit: bestSuit };
+  return { type: "obenabe" };
 }
