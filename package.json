@@ -1,5 +1,5 @@
 {
-  "name": "@wireon/jass-engine",
+  "name": "trumpf",
   "version": "0.1.0",
   "description": "Schieber-Jass Spiellogik (französische Karten)",
   "type": "module",

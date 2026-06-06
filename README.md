@@ -1,4 +1,4 @@
-# @wireon/jass-engine
+# trumpf
 
 Spiellogik für den **Schieber-Jass** mit französischen Karten (Walliser/Schweizer
 Bezeichnungen). Reine, framework-unabhängige TypeScript-Logik – ohne UI, ohne
@@ -20,7 +20,7 @@ Netzwerk, vollständig deterministisch testbar.
 
 ```ts
 import { createDeck, shuffle, deal, startRound, playCard, scoreRound,
-         startMatch, applyRound } from "@wireon/jass-engine";
+         startMatch, applyRound } from "trumpf";
 
 const trump = { type: "suit", suit: "herz" } as const;
 let round = startRound(deal(shuffle(createDeck())), trump, /* Vorhand */ 0);
