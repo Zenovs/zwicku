@@ -536,25 +536,33 @@ export default function GameTable() {
           );
         })}
 
-        {/* Mitte: Trumpfkarte, Pot-Münzen, aktueller Stich */}
+        {/* Mitte: Filz-Matte, neutraler Stapel mit Trumpf, Pot, aktueller Stich */}
         <div className="center">
-          {trumpCard && (
-            <div className="trumpCardSlot">
-              <PlayingCard card={trumpCard} width={42} deck={settings.deck} />
-              <span className="trumpTag">Trumpf</span>
+          <div className="mat" />
+
+          <div className="stock">
+            {trumpCard && (
+              <div className="trumpUnder">
+                <PlayingCard card={trumpCard} width={62} deck={settings.deck} />
+              </div>
+            )}
+            <div className="deckStack">
+              <CardBack width={62} />
+              <CardBack width={62} />
+              <CardBack width={62} />
             </div>
-          )}
+            {trump && <span className="trumpTag">Trumpf · {SUIT_NAME[trump]}</span>}
+          </div>
+
           <div className="potCoins">
             <CoinPile amount={pot} max={16} />
           </div>
-          <div className="trickRow">
-            {centerCards.map((pc) => (
-              <div key={pc.player} className="trickCard">
-                <PlayingCard card={pc.card} width={46} deck={settings.deck} />
-                <span className="trickWho">{playerNames[pc.player]}</span>
-              </div>
-            ))}
-          </div>
+
+          {centerCards.map((pc) => (
+            <div key={pc.player} className={`played ${seats[pc.player]}`}>
+              <PlayingCard card={pc.card} width={62} deck={settings.deck} />
+            </div>
+          ))}
         </div>
 
         {/* Zwack-Overlay (menschlicher Austeiler) */}
@@ -589,7 +597,7 @@ export default function GameTable() {
               </p>
               <div className="miniHand">
                 {(hands[HUMAN] ?? []).map((c) => (
-                  <PlayingCard key={cardName(c)} card={c} width={50} deck={settings.deck} />
+                  <PlayingCard key={cardName(c)} card={c} width={66} deck={settings.deck} />
                 ))}
               </div>
               <div className="row">
@@ -633,9 +641,9 @@ export default function GameTable() {
           {(hands[HUMAN] ?? []).map((card, i) => {
             const n = hands[HUMAN].length;
             const mid = (n - 1) / 2;
-            const angle = (i - mid) * 6;
-            const x = (i - mid) * 60;
-            const y = (i - mid) * (i - mid) * 3;
+            const angle = (i - mid) * 7;
+            const x = (i - mid) * 74;
+            const y = (i - mid) * (i - mid) * 4;
             const playable = isLegal(card);
             const suggest = suggestion ? sameCard(card, suggestion) : false;
             const style: Record<string, string | number> = {
@@ -654,7 +662,7 @@ export default function GameTable() {
                 onClick={() => onHumanPlay(card)}
                 disabled={!humanTurn}
               >
-                <PlayingCard card={card} width={96} highlight={humanTurn && playable} deck={settings.deck} />
+                <PlayingCard card={card} width={114} highlight={humanTurn && playable} deck={settings.deck} />
               </button>
             );
           })}

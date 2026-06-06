@@ -33,7 +33,7 @@ body {
 }
 /* Geschätzte Höhe von Topbar + Hint + Fächer + Abstände. */
 :root {
-  --chrome: 300px;
+  --chrome: 320px;
 }
 
 .topbar {
@@ -377,15 +377,15 @@ body {
 .fan {
   position: relative;
   width: 100%;
-  max-width: 680px;
-  height: 185px;
+  max-width: 720px;
+  height: 205px;
   margin-top: 2px;
 }
 .fancard {
   position: absolute;
   left: 50%;
-  bottom: 34px;
-  margin-left: -48px;
+  bottom: 26px;
+  margin-left: -57px;
   background: none;
   border: none;
   padding: 0;
@@ -402,7 +402,7 @@ body {
   cursor: pointer;
 }
 .fancard.playable:hover {
-  transform: translateX(var(--x)) translateY(calc(var(--y) - 36px)) rotate(var(--a));
+  transform: translateX(var(--x)) translateY(calc(var(--y) - 46px)) rotate(var(--a));
   z-index: 100 !important;
 }
 .fancard.dim {
@@ -620,3 +620,105 @@ body {
   font-style: italic;
   font-size: 14px;
 }
+
+/* ===== Mitte v2: Matte, neutraler Stapel, gespielte Karten, Animationen ===== */
+.center {
+  width: 84%;
+  height: 84%;
+}
+.mat {
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, rgba(22, 74, 48, 0.8), rgba(8, 38, 24, 0.55));
+  border: 2px solid rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 46px rgba(0, 0, 0, 0.5);
+}
+
+.stock {
+  position: absolute;
+  left: 50%;
+  top: 1%;
+  transform: translateX(-50%);
+  width: 132px;
+  height: 112px;
+}
+.deckStack {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+}
+.deckStack .pcard {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.deckStack .pcard:nth-child(2) {
+  transform: translate(2px, 2px);
+}
+.deckStack .pcard:nth-child(3) {
+  transform: translate(4px, 4px);
+}
+.trumpUnder {
+  position: absolute;
+  left: 40px;
+  top: 18px;
+  z-index: 1;
+  transform: rotate(90deg);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+.trumpTag {
+  position: absolute;
+  top: 104px;
+  left: -6px;
+  width: 150px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--gold);
+}
+
+.potCoins {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  width: 190px;
+  height: 72px;
+}
+
+.played {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  animation: dealIn 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.25);
+}
+.played .pcard {
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.55);
+}
+.played.south { left: 50%; top: 92%; }
+.played.north { left: 50%; top: 42%; }
+.played.east { left: 87%; top: 62%; }
+.played.west { left: 13%; top: 62%; }
+.played.tright { left: 81%; top: 32%; }
+.played.tleft { left: 19%; top: 32%; }
+
+@keyframes dealIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.55) rotate(-6deg); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.overlay { animation: fadeIn 0.18s ease; }
+.panel { animation: popUp 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.2); }
+.seat.active .seatInfo .name { color: var(--gold); }
+.seat { transition: filter 0.2s ease; }
+.coin { transition: transform 0.2s ease; }
+
+/* Karten generell etwas wärmer einrahmen */
+.pcard { transition: box-shadow 0.15s ease; }
