@@ -1,8 +1,9 @@
-# trumpf
+# zwicku
 
-**Schieber-Jass** mit französischen Karten (Walliser/Schweizer Bezeichnungen):
-eine framework-unabhängige TypeScript-**Engine** plus eine spielbare
-**Next.js-App** gegen einfache Bots.
+**Zwicku** – ein Kartenspiel mit französischen Spielkarten, als spielbare
+**Next.js-App**. Die eigentlichen Zwicku-Regeln werden gerade ergänzt; aktuell
+läuft im Hintergrund noch eine generische Stich-Engine (TypeScript, getestet),
+die schrittweise auf die Zwicku-Regeln umgestellt wird.
 
 ## Projektstruktur
 

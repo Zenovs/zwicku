@@ -63,7 +63,9 @@ function explainIllegal(card: Card, trick: PlayedCard[], trump: TrumpMode): stri
   return `Du musst die angespielte Farbe (${SUIT_NAME[led]}) bedienen.`;
 }
 
-export default function JassTable() {
+const SETTINGS_KEY = "zwicku.settings";
+
+export default function GameTable() {
   const [settings, setSettings] = useState<Settings>({ target: 1000, learn: false });
   const [match, setMatch] = useState<MatchState>(() => startMatch({ target: 1000 }));
   const [round, setRound] = useState<GameState | null>(null);
@@ -79,6 +81,31 @@ export default function JassTable() {
   const [hint, setHint] = useState("");
 
   const finalizedRef = useRef(false);
+
+  // Einstellungen aus dem Browser laden (einmalig nach Mount, hydration-safe).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<Settings>;
+        setSettings((s) => ({
+          target: typeof saved.target === "number" ? saved.target : s.target,
+          learn: typeof saved.learn === "boolean" ? saved.learn : s.learn,
+        }));
+      }
+    } catch {
+      /* ignorieren – z. B. privater Modus */
+    }
+  }, []);
+
+  // Einstellungen sichern.
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      /* ignorieren */
+    }
+  }, [settings]);
 
   const dealNewRound = useCallback((nextLeader: number) => {
     const hands = deal(shuffle(createDeck()));
@@ -263,8 +290,8 @@ export default function JassTable() {
     return (
       <div className="app">
         <div className="setupCard">
-          <div className="brand">Trumpf</div>
-          <div className="brandSub">Schieber-Jass · französische Karten</div>
+          <div className="brand">Zwicku</div>
+          <div className="brandSub">Kartenspiel · französische Karten</div>
 
           <h3>Punkteziel</h3>
           <div className="segmented">
@@ -301,7 +328,7 @@ export default function JassTable() {
         </div>
         <div className="footer">
           Engine & Code:{" "}
-          <a href="https://github.com/Zenovs/trumpf">github.com/Zenovs/trumpf</a>
+          <a href="https://github.com/Zenovs/zwicku">github.com/Zenovs/zwicku</a>
         </div>
       </div>
     );

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trumpf – Schieber-Jass",
+  title: "Zwicku",
   description:
-    "Spielbarer Schieber-Jass (französische Karten) gegen einfache Bots.",
+    "Zwicku – Kartenspiel mit französischen Spielkarten.",
 };
 
 export default function RootLayout({

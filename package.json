@@ -1,7 +1,7 @@
 {
-  "name": "trumpf",
+  "name": "zwicku",
   "version": "0.1.0",
-  "description": "Schieber-Jass: Engine + spielbare Next.js-App (französische Karten)",
+  "description": "Zwicku – Kartenspiel mit französischen Spielkarten (Next.js-App)",
   "private": true,
   "scripts": {
     "dev": "next dev",

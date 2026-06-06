@@ -1,5 +1,5 @@
-import JassTable from "./JassTable";
+import GameTable from "./GameTable";
 
 export default function Page() {
-  return <JassTable />;
+  return <GameTable />;
 }
