@@ -9,3 +9,6 @@ next-env.d.ts
 # Vercel
 .vercel
 .env*.local
+
+# Dev-Screenshots
+shot.mjs

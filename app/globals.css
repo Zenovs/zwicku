@@ -72,10 +72,9 @@ body {
 
 .table {
   position: relative;
-  width: min(94vw, calc(100dvh - var(--chrome)));
-  max-width: 680px;
-  aspect-ratio: 1 / 1;
-  flex: none;
+  width: min(97vw, 1120px);
+  flex: 1 1 auto;
+  min-height: 0;
   background: radial-gradient(circle at 50% 50%, #138a4b, #0c5a32);
   border: 6px solid rgba(0, 0, 0, 0.25);
   border-radius: 24px;
@@ -623,16 +622,19 @@ body {
 
 /* ===== Mitte v2: Matte, neutraler Stapel, gespielte Karten, Animationen ===== */
 .center {
-  width: 84%;
-  height: 84%;
+  width: min(64%, 600px);
+  height: min(82%, 470px);
 }
 .mat {
   position: absolute;
-  inset: 5%;
+  inset: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 42%, rgba(22, 74, 48, 0.8), rgba(8, 38, 24, 0.55));
-  border: 2px solid rgba(0, 0, 0, 0.32);
-  box-shadow: inset 0 0 46px rgba(0, 0, 0, 0.5);
+  background:
+    radial-gradient(ellipse at 50% 40%, #1c7a49 0%, #0f5631 78%);
+  border: 5px solid #3a2615;
+  box-shadow:
+    inset 0 0 50px rgba(0, 0, 0, 0.5),
+    0 6px 18px rgba(0, 0, 0, 0.4);
 }
 
 .stock {
