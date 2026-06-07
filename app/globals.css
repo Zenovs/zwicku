@@ -29,7 +29,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px;
+  padding: 6px 6px 4px;
 }
 /* Geschätzte Höhe von Topbar + Hint + Fächer + Abstände. */
 :root {
@@ -377,13 +377,13 @@ body {
   position: relative;
   width: 100%;
   max-width: 720px;
-  height: 205px;
-  margin-top: 2px;
+  height: 184px;
+  margin-top: 0;
 }
 .fancard {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 6px;
   margin-left: -57px;
   background: none;
   border: none;
@@ -622,8 +622,8 @@ body {
 
 /* ===== Mitte v2: Matte, neutraler Stapel, gespielte Karten, Animationen ===== */
 .center {
-  width: min(64%, 600px);
-  height: min(82%, 470px);
+  width: min(74%, 860px);
+  height: min(96%, 640px);
 }
 .mat {
   position: absolute;
