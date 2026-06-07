@@ -8,33 +8,67 @@ import {
   LeadConstraint,
 } from "./engine";
 
-/** Grobe Handstärke (0..~) für Mitkommen/Zwack-Entscheidungen. */
-export function handStrength(hand: Card[], trump: Suit): number {
-  let s = 0;
+const strengthOf = (c: Card, trump: Suit) =>
+  (c.suit === trump ? 100 : 0) + RANK_ORDER[c.rank];
+
+/** Erwartete Stichzahl der Hand (grobe Schätzung, 0..3). */
+export function expectedTricks(hand: Card[], trump: Suit): number {
+  let t = 0;
   for (const c of hand) {
-    if (c.suit === trump) s += 3 + RANK_ORDER[c.rank] * 0.4; // Trümpfe stark
-    else s += RANK_ORDER[c.rank] * 0.25; // hohe Seitenkarten
-    if (c.rank === "ass") s += 1.2;
+    if (c.suit === trump) {
+      if (RANK_ORDER[c.rank] >= 8) t += 0.92; // Ass/König Trumpf: fast sicher
+      else if (RANK_ORDER[c.rank] >= 6) t += 0.62;
+      else if (RANK_ORDER[c.rank] >= 4) t += 0.4;
+      else t += 0.22;
+    } else if (c.rank === "ass") t += 0.62;
+    else if (c.rank === "koenig") t += 0.32;
+    else if (c.rank === "dame") t += 0.15;
   }
-  return s;
+  return t;
 }
 
-/** Bot: mitkommen oder passen? */
+/** Bot: mitkommen, wenn ~ ein Stich realistisch ist. */
 export function botComesAlong(hand: Card[], trump: Suit): boolean {
-  return handStrength(hand, trump) >= 7;
+  return expectedTricks(hand, trump) >= 0.9;
 }
 
-/** Bot (als Austeiler): vor dem Aufdecken "zwack" sagen? Blind, nur Hand bekannt. */
+/** Bot-Austeiler: blind (ohne Trumpf) „zwack"? Nur bei sehr starker Hand. */
 export function botSaysZwack(hand: Card[]): boolean {
-  // Zwack ist riskant (doppelt bei null Stichen): nur mit zwei Assen/sehr hoch.
+  const high = hand.filter((c) => RANK_ORDER[c.rank] >= 8).length; // Ass/König
   const aces = hand.filter((c) => c.rank === "ass").length;
-  const highs = hand.filter((c) => RANK_ORDER[c.rank] >= 7).length;
-  return aces >= 1 && highs >= 2;
+  return aces >= 1 && high >= 2;
 }
 
 /**
- * Bot-Kartenwahl: gewinnt er den Stich gerade günstig, nimmt er ihn; sonst
- * wirft er möglichst tief ab. Beim Anspielen führt er seine stärkste Karte.
+ * Tausch-Entscheidung: lohnt es, die aufgedeckte Trumpfkarte gegen die
+ * schwächste Handkarte zu tauschen? Gibt die abzulegende Karte zurück (oder null).
+ */
+export function botSwapDecision(
+  hand: Card[],
+  trumpCard: Card,
+  trump: Suit,
+): Card | null {
+  const worst = hand.reduce((lo, c) =>
+    strengthOf(c, trump) < strengthOf(lo, trump) ? c : lo,
+  );
+  return strengthOf(trumpCard, trump) > strengthOf(worst, trump) + 2 ? worst : null;
+}
+
+/** Opinier: bei 3 gleichen, schwachen Karten neu ziehen versuchen. */
+export function botWantsOpinier(hand: Card[], trump: Suit): boolean {
+  const allSame = hand.every((c) => c.suit === hand[0].suit);
+  return allSame && hand[0].suit !== trump && expectedTricks(hand, trump) < 0.8;
+}
+
+/** Nach Opinier: stärkere der beiden Hände behalten. */
+export function botKeepsNew(oldHand: Card[], newHand: Card[], trump: Suit): boolean {
+  return expectedTricks(newHand, trump) > expectedTricks(oldHand, trump);
+}
+
+/**
+ * Kartenwahl. Anspielen: stärkste Karte (zieht Trümpfe / gewinnt). Bedienen:
+ * günstig stechen wenn möglich, sonst die punktärmste Nicht-Trumpf-Karte abwerfen
+ * (Trümpfe für später behalten).
  */
 export function chooseBotCard(
   hand: Card[],
@@ -46,14 +80,12 @@ export function chooseBotCard(
   const options = legalMoves(hand, trick, trump, lead);
   if (options.length === 1) return options[0];
 
-  const strength = (c: Card) => (c.suit === trump ? 100 : 0) + RANK_ORDER[c.rank];
-  const lowest = (cs: Card[]) =>
-    cs.reduce((lo, c) => (strength(c) < strength(lo) ? c : lo));
-  const highest = (cs: Card[]) =>
-    cs.reduce((hi, c) => (strength(c) > strength(hi) ? c : hi));
+  const str = (c: Card) => strengthOf(c, trump);
+  const lowest = (cs: Card[]) => cs.reduce((lo, c) => (str(c) < str(lo) ? c : lo));
+  const highest = (cs: Card[]) => cs.reduce((hi, c) => (str(c) > str(hi) ? c : hi));
 
   if (trick.length === 0) {
-    return highest(options); // anspielen: stark führen
+    return highest(options); // anspielen: stark
   }
 
   const winning = options.filter(

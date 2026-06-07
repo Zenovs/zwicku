@@ -113,6 +113,12 @@ export function CoinPile({
   );
 }
 
+/** Eine einzelne Münze für den grössten Wert ≤ amount (für Flug-Animation). */
+export function StakeCoin({ amount, size }: { amount: number; size?: number }) {
+  const den = DENOMS.find((d) => d.v <= amount) ?? DENOMS[DENOMS.length - 1];
+  return <Coin den={den} size={size} />;
+}
+
 /** Deko: Schnapsglas (Stammtisch-Feeling). */
 export function SchnappsGlass({ size = 26 }: { size?: number }) {
   const h = size * 1.45;

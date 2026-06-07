@@ -724,3 +724,77 @@ body {
 
 /* Karten generell etwas wärmer einrahmen */
 .pcard { transition: box-shadow 0.15s ease; }
+
+/* ===== Karten in die Mitte (wie beim Jassen) ===== */
+.played.south { left: 50%; top: 62%; }
+.played.north { left: 50%; top: 40%; }
+.played.east { left: 60%; top: 53%; }
+.played.west { left: 40%; top: 53%; }
+.played.tright { left: 58%; top: 42%; }
+.played.tleft { left: 42%; top: 42%; }
+.playedInner { display: block; }
+.played.south .playedInner { transform: rotate(-4deg); }
+.played.north .playedInner { transform: rotate(4deg); }
+.played.east .playedInner { transform: rotate(7deg); }
+.played.west .playedInner { transform: rotate(-7deg); }
+.played.tright .playedInner { transform: rotate(6deg); }
+.played.tleft .playedInner { transform: rotate(-6deg); }
+
+/* Pot nach unten in die Matte */
+.potCoins {
+  top: 86%;
+}
+
+/* ===== Fliegende Münzen ===== */
+.flyCoin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  pointer-events: none;
+  animation: coinFly 0.68s ease forwards;
+}
+@keyframes coinFly {
+  0% {
+    transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1);
+    opacity: 0;
+  }
+  18% { opacity: 1; }
+  100% {
+    transform: translate(-50%, -50%) scale(0.65);
+    opacity: 0;
+  }
+}
+
+/* ===== Opinier / Tausch ===== */
+.opinierRow {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin: 10px 0;
+}
+.opLabel {
+  font-size: 11px;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.swapWrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+  margin: 12px 0;
+}
+.swapTrump {
+  text-align: center;
+}
+.swapPick {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.swapPick:hover {
+  transform: translateY(-8px);
+}
