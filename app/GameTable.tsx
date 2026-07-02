@@ -25,6 +25,8 @@ import {
 } from "@/lib/bot";
 import { PlayingCard, CardBack, SUIT_SYMBOL, RANK_LABEL, DeckStyle } from "./PlayingCard";
 import { CoinPile, SchnappsGlass, StakeCoin, formatChf } from "./Tabletop";
+import { setSound, sfx } from "@/lib/sound";
+import { Stats, emptyStats, loadStats, saveStats, recordRound } from "@/lib/stats";
 
 const HUMAN = 0;
 const SCHAUFEL_LIMIT = 300; // bis 3 Franken Einsatz gilt Schaufel-Pflicht
@@ -51,6 +53,7 @@ type Settings = {
   deck: DeckStyle;
   startBalance: number;
   schaufel: boolean;
+  sound: boolean;
 };
 type Flying = { id: number; cls: string; amount: number };
 const SETTINGS_KEY = "zwicku.settings";
@@ -76,7 +79,10 @@ export default function GameTable() {
     deck: "image",
     startBalance: 1000,
     schaufel: false,
+    sound: true,
   });
+  const [stats, setStats] = useState<Stats>(emptyStats);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("setup");
   const [balances, setBalances] = useState<number[]>([]);
   const [pot, setPot] = useState(0);
@@ -117,12 +123,19 @@ export default function GameTable() {
           deck: s.deck === "image" || s.deck === "drawn" ? s.deck : cur.deck,
           startBalance: typeof s.startBalance === "number" ? s.startBalance : cur.startBalance,
           schaufel: typeof s.schaufel === "boolean" ? s.schaufel : cur.schaufel,
+          sound: typeof s.sound === "boolean" ? s.sound : cur.sound,
         }));
       }
     } catch {
       /* egal */
     }
+    setStats(loadStats());
   }, []);
+
+  // Sound-Zustand mit Einstellung synchronisieren.
+  useEffect(() => {
+    setSound(settings.sound);
+  }, [settings.sound]);
   useEffect(() => {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -139,6 +152,7 @@ export default function GameTable() {
       const id = ++coinId.current;
       const cls = seats[seat] ?? "south";
       setFlying((f) => [...f, { id, cls, amount }]);
+      sfx.coin();
       window.setTimeout(() => setFlying((f) => f.filter((c) => c.id !== id)), 680);
     },
     [seats],
@@ -181,6 +195,7 @@ export default function GameTable() {
       setSettleMsg([]);
       setToMove(null);
       finalizedRef.current = false;
+      sfx.deal();
       spawnCoin(theDealer, stake);
 
       setPhase("zwack");
@@ -427,14 +442,31 @@ export default function GameTable() {
           ? ["Geht auf – Pot verteilt. Neue Runde mit frischem Einsatz.", ...msg]
           : [`Pot bleibt liegen: ${formatChf(res.newPot)}.`, ...msg],
       );
+
+      // Statistik (Mensch) verbuchen.
+      const nextStats = recordRound(stats, {
+        joined: !!comer[HUMAN],
+        tricks: tricks[HUMAN] ?? 0,
+        payout: res.payouts[HUMAN] ?? 0,
+        penalty: res.penalties[HUMAN] ?? 0,
+      });
+      setStats(nextStats);
+      saveStats(nextStats);
+
+      // Ton je nach Ergebnis für den Menschen.
+      const net = (res.payouts[HUMAN] ?? 0) - (res.penalties[HUMAN] ?? 0);
+      if (net > 0) sfx.win();
+      else if (net < 0) sfx.lose();
+
       setPhase("settle");
       setHint("");
     },
-    [settings.players, comersList, pot, dealer, balances, zwack, playerNames],
+    [settings.players, comersList, pot, dealer, balances, zwack, playerNames, stats, comer],
   );
 
   const applyPlay = useCallback(
     (player: number, card: Card) => {
+      sfx.card();
       const trick = [...currentTrick, { player, card }];
       setHands((h) => h.map((hh, i) => (i === player ? hh.filter((c) => !sameCard(c, card)) : hh)));
 
@@ -560,6 +592,12 @@ export default function GameTable() {
             <span className="toggleLabel">{settings.learn ? "An" : "Aus"}</span>
           </button>
 
+          <h3>Ton</h3>
+          <button className={`toggle ${settings.sound ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, sound: !s.sound }))}>
+            <span className="knob" />
+            <span className="toggleLabel">{settings.sound ? "An" : "Aus"}</span>
+          </button>
+
           <h3>Kartendesign</h3>
           <div className="segmented">
             <button className={`seg ${settings.deck === "drawn" ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, deck: "drawn" }))}>
@@ -573,10 +611,46 @@ export default function GameTable() {
           <button className="btn big" onClick={startGame}>
             Zwicku starten
           </button>
+          <button className="btn ghost statBtn" onClick={() => setStatsOpen(true)}>
+            📊 Statistik
+          </button>
         </div>
         <div className="footer">
           <a href="https://github.com/Zenovs/zwicku">github.com/Zenovs/zwicku</a>
         </div>
+
+        {statsOpen && (
+          <div className="overlay fixedOverlay" onClick={() => setStatsOpen(false)}>
+            <div className="panel" onClick={(e) => e.stopPropagation()}>
+              <h2>Deine Statistik</h2>
+              <div className="statGrid">
+                <div><b>{stats.rounds}</b><span>Runden</span></div>
+                <div><b>{stats.joined}</b><span>mitgekommen</span></div>
+                <div><b>{stats.tricks}</b><span>Stiche</span></div>
+                <div><b>{stats.potsWon}</b><span>Pötte gewonnen</span></div>
+                <div className={stats.net >= 0 ? "pos" : "neg"}>
+                  <b>{stats.net >= 0 ? "+" : "−"}{formatChf(Math.abs(stats.net))}</b>
+                  <span>Bilanz</span>
+                </div>
+                <div><b>{formatChf(stats.bestPot)}</b><span>bester Pot</span></div>
+              </div>
+              <div className="row">
+                <button
+                  className="btn ghost"
+                  onClick={() => {
+                    setStats(emptyStats);
+                    saveStats(emptyStats);
+                  }}
+                >
+                  Zurücksetzen
+                </button>
+                <button className="btn" onClick={() => setStatsOpen(false)}>
+                  Schliessen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

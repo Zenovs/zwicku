@@ -871,3 +871,42 @@ button {
   .swapWrap { flex-direction: column; gap: 10px; }
   .row { flex-wrap: wrap; }
 }
+
+/* ===== Statistik ===== */
+.statBtn {
+  width: 100%;
+  margin-top: 10px;
+}
+.fixedOverlay {
+  position: fixed;
+  border-radius: 0;
+  z-index: 20;
+}
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+.statGrid > div {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 4px;
+  text-align: center;
+}
+.statGrid b {
+  display: block;
+  color: var(--gold);
+  font-size: 19px;
+}
+.statGrid span {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.statGrid .pos b {
+  color: #7fdc86;
+}
+.statGrid .neg b {
+  color: #e78a8a;
+}
