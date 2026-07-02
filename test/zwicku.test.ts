@@ -6,6 +6,7 @@ import {
   isLegalMove,
   trickWinner,
   settle,
+  isHopeless,
   Card,
   PlayedCard,
   Suit,
@@ -130,6 +131,33 @@ describe("legalMoves – anspielen", () => {
         forceTrumpAce: true,
       }),
     ).toBe(false);
+  });
+});
+
+describe("isHopeless – chancenlose Hand", () => {
+  it("drei Sechsen ohne Trumpf-6 = chancenlos", () => {
+    const hand: Card[] = [
+      { suit: "ecken", rank: "6" },
+      { suit: "schaufle", rank: "6" },
+      { suit: "kreuz", rank: "6" },
+    ];
+    expect(isHopeless(hand, "herz")).toBe(true);
+  });
+  it("Trumpf-6 dabei = nicht chancenlos", () => {
+    const hand: Card[] = [
+      { suit: "herz", rank: "6" },
+      { suit: "schaufle", rank: "6" },
+      { suit: "kreuz", rank: "6" },
+    ];
+    expect(isHopeless(hand, "herz")).toBe(false);
+  });
+  it("eine höhere Karte = nicht chancenlos", () => {
+    const hand: Card[] = [
+      { suit: "ecken", rank: "6" },
+      { suit: "schaufle", rank: "7" },
+      { suit: "kreuz", rank: "6" },
+    ];
+    expect(isHopeless(hand, "herz")).toBe(false);
   });
 });
 

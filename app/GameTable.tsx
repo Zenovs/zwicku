@@ -12,6 +12,7 @@ import {
   legalMoves,
   trickWinner,
   settle,
+  isHopeless,
   LeadConstraint,
 } from "@/lib/engine";
 import {
@@ -147,7 +148,12 @@ export default function GameTable() {
   const startRound = useCallback(
     (theDealer: number, carriedPot: number, bal: number[]) => {
       const N = settings.players;
-      const deal = dealZwicku(shuffle(createDeck()), N);
+      // Chancenlose Hand (z. B. drei Sechsen) -> neu mischen und geben.
+      let deal = dealZwicku(shuffle(createDeck()), N);
+      for (let t = 0; t < 40; t++) {
+        if (!deal.hands.some((h) => isHopeless(h, deal.trumpCard.suit))) break;
+        deal = dealZwicku(shuffle(createDeck()), N);
+      }
       const fresh = carriedPot === 0;
       const stake = fresh ? ANTE : carriedPot;
 
@@ -639,7 +645,12 @@ export default function GameTable() {
           </div>
 
           {centerCards.map((pc) => (
-            <div key={pc.player} className={`played ${seats[pc.player]}`}>
+            <div
+              key={pc.player}
+              className={`played ${seats[pc.player]} ${
+                freeze && freeze.winner === pc.player ? "won" : ""
+              }`}
+            >
               <div className="playedInner">
                 <PlayingCard card={pc.card} width={64} deck={settings.deck} />
               </div>

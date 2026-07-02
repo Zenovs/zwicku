@@ -60,3 +60,12 @@ export function isLegalMove(
     (c) => c.suit === card.suit && c.rank === card.rank,
   );
 }
+
+/**
+ * Chancenlose Hand: kann 100% keinen Stich machen. Garantiert nur bei drei
+ * Sechsen, von denen keine Trumpf ist (6 ist überall die tiefste Karte). In
+ * diesem Fall wird neu gemischt und gegeben.
+ */
+export function isHopeless(hand: Card[], trump: Suit): boolean {
+  return hand.every((c) => c.rank === "6") && !hand.some((c) => c.suit === trump);
+}

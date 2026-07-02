@@ -798,3 +798,76 @@ body {
 .swapPick:hover {
   transform: translateY(-8px);
 }
+
+/* ===== Bessere Karten-Animation: aus Spielerrichtung in die Mitte ===== */
+.played {
+  animation: cardIn 0.34s cubic-bezier(0.2, 0.8, 0.3, 1.12);
+}
+.played.south { --fx: 0px; --fy: 150px; }
+.played.north { --fx: 0px; --fy: -140px; }
+.played.east { --fx: 175px; --fy: 25px; }
+.played.west { --fx: -175px; --fy: 25px; }
+.played.tright { --fx: 150px; --fy: -110px; }
+.played.tleft { --fx: -150px; --fy: -110px; }
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--fx, 0px)), calc(-50% + var(--fy, 0px))) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+.played.won .pcard {
+  box-shadow: 0 0 0 3px var(--gold), 0 6px 16px rgba(0, 0, 0, 0.6);
+  animation: wonPulse 0.5s ease;
+}
+@keyframes wonPulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+
+/* Tap-Verhalten für Touch */
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.app {
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
+}
+
+/* ===== Smartphone-Feinschliff ===== */
+@media (max-width: 560px) {
+  .app {
+    padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom));
+  }
+  .fan {
+    transform: scale(0.92);
+    transform-origin: bottom center;
+    height: 172px;
+  }
+  .title { display: none; }
+  .topbar {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .potInfo { font-size: 12px; }
+  .potInfo b { font-size: 15px; }
+  .potInfo .dim { display: none; }
+  .trumpBadge { font-size: 12px; padding: 3px 9px; }
+  .center { width: 88%; height: 82%; }
+  .seatCoins { width: 92px; height: 22px; }
+  .seatInfo .bal { font-size: 11px; }
+  .seat { font-size: 12px; }
+  .panel {
+    max-width: 92vw;
+    padding: 18px 15px;
+  }
+  .panel h2 { font-size: 20px; }
+  .miniHand { gap: 4px; }
+  .opinierRow { flex-direction: column; gap: 8px; align-items: center; }
+  .swapWrap { flex-direction: column; gap: 10px; }
+  .row { flex-wrap: wrap; }
+}
